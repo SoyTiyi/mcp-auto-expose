@@ -40,6 +40,7 @@ router.post(
 
 app.use("/api", router);
 
+// strictSchema:true is the default; explicit here to document that routes without mcpExpose are skipped
 const handle = autoExpose(app, { strictSchema: true });
 
 await startStdio({
