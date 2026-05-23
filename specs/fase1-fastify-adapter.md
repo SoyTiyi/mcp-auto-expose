@@ -93,6 +93,8 @@ fastify.addHook("onRoute", (routeOptions) => {
 4. Si `config?.mcpExpose === false`, la ruta se omite (escape hatch declarativo).
 5. Si `options.strictSchema === true` y la ruta no tiene `schema.body/querystring/params`, la ruta se omite.
 
+**Nota sobre HEAD y OPTIONS en el adaptador Fastify**: Fastify v5 auto-genera una ruta HEAD por cada ruta GET registrada. El adaptador filtra HEAD automáticamente para evitar herramientas duplicadas. OPTIONS se incluye como método soportado ya que los usuarios pueden definir handlers OPTIONS con semántica propia.
+
 ### 3.2. Generación de nombre de tool (`generateToolName`)
 
 Determinístico, alineado con el patrón CRUD habitual:

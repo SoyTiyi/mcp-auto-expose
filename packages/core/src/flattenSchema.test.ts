@@ -82,22 +82,37 @@ describe("flattenSchema", () => {
   });
 
   it("6. $ref in a property schema — property is skipped, no error thrown", () => {
-    const result = flattenSchema({
-      body: {
-        type: "object",
-        properties: {
-          user: { $ref: "#/definitions/User" },
-          name: { type: "string" },
+    // Redirect stderr to avoid test noise from the $ref warning
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    let stderrOutput = "";
+    process.stderr.write = (chunk: string | Uint8Array) => {
+      stderrOutput += chunk.toString();
+      return true;
+    };
+
+    let result;
+    try {
+      result = flattenSchema({
+        body: {
+          type: "object",
+          properties: {
+            user: { $ref: "#/definitions/User" },
+            name: { type: "string" },
+          },
+          required: ["user", "name"],
         },
-        required: ["user", "name"],
-      },
-    });
+      });
+    } finally {
+      process.stderr.write = originalWrite;
+    }
+
     // 'user' ($ref) is skipped; 'name' is present
     assert.ok(!("user" in result.properties), "'user' should be skipped");
     assert.ok("name" in result.properties, "'name' should be present");
     assert.deepEqual(result.properties.name, { type: "string" });
     // required: 'user' is skipped (since it was a $ref), 'name' is included
     assert.deepEqual(result.required, ["name"]);
+    assert.ok(stderrOutput.includes("$ref"), "stderr should mention $ref skip");
   });
 
   it("7. required fields — combined from params and body correctly", () => {

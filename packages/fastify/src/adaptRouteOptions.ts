@@ -5,15 +5,16 @@ export interface AutoExposeOptions {
   strictSchema?: boolean;
 }
 
-// HTTP methods exposed as MCP tools. HEAD and OPTIONS are intentionally
-// excluded: Fastify auto-generates HEAD routes alongside every GET, and
-// neither method models a useful tool action (no body, CORS preflight).
+// HEAD is excluded: Fastify auto-generates a HEAD route for every GET route.
+// Including HEAD would produce a duplicate tool (e.g. head_users) alongside list_users.
+// OPTIONS is included because users may define explicit OPTIONS handlers for non-CORS purposes.
 const SUPPORTED_METHODS = new Set<string>([
   "GET",
   "POST",
   "PUT",
   "PATCH",
   "DELETE",
+  "OPTIONS",
 ]);
 
 export function adaptRouteOptions(

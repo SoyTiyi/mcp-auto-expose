@@ -104,4 +104,20 @@ describe("adaptRouteOptions", () => {
     assert.equal(result.length, 1);
     assert.equal(result[0]?.method, "GET");
   });
+
+  it("OPTIONS method is supported", () => {
+    const result = adaptRouteOptions(
+      makeRouteOptions({ method: "OPTIONS" as RouteOptions["method"], url: "/api/users" }),
+    );
+    assert.equal(result.length, 1);
+    assert.equal(result[0]?.method, "OPTIONS");
+    assert.equal(result[0]?.url, "/api/users");
+  });
+
+  it("HEAD method is excluded", () => {
+    const result = adaptRouteOptions(
+      makeRouteOptions({ method: "HEAD" as RouteOptions["method"], url: "/api/users" }),
+    );
+    assert.deepEqual(result, []);
+  });
 });
