@@ -98,7 +98,7 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
 
       const ctx = httpContextStorage.getStore() ?? buildEmptyCtx();
       const rawArgs = (req.params.arguments ?? {}) as Record<string, unknown>;
-      const enrichedArgs = mergeHeaderParams(tool.inputSchema, rawArgs, ctx.headerParams, warn);
+      const enrichedArgs = mergeHeaderParams(tool.inputSchema as unknown as Record<string, unknown>, rawArgs, ctx.headerParams, warn);
 
       return onToolCall(tool, enrichedArgs, ctx);
     });
@@ -221,7 +221,7 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
       }
 
       await httpContextStorage.run(ctx, () =>
-        transport.handleRequest(req, res, req.body),
+        transport.handleRequest(req as Parameters<typeof transport.handleRequest>[0], res, req.body),
       );
 
       if (session === "stateless") {
@@ -239,7 +239,7 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
       };
 
       await httpContextStorage.run(ctx, () =>
-        transport.handleRequest(req, res, undefined),
+        transport.handleRequest(req as Parameters<typeof transport.handleRequest>[0], res, undefined),
       );
 
       if (session === "stateless") {
