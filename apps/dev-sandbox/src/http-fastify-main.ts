@@ -19,7 +19,6 @@
  */
 
 import Fastify from "fastify";
-import { z } from "zod/v3";
 import type { MCPTool } from "@mcp-auto-expose/http";
 import { mcpFastifyPlugin } from "@mcp-auto-expose/http/fastify";
 
@@ -58,9 +57,6 @@ const tools: MCPTool[] = [
     _source: { framework: "fastify", method: "POST", url: "/users" },
   },
 ];
-
-// Suppress unused import lint warning
-void z;
 
 const fastify = Fastify({ logger: false });
 
