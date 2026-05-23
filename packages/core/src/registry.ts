@@ -4,7 +4,7 @@ export class ToolRegistry {
   private readonly _tools = new Map<string, MCPTool>();
 
   register(tool: MCPTool): void {
-    let name = tool.name;
+    const name = tool.name;
     if (this._tools.has(name)) {
       let suffix = 2;
       while (this._tools.has(`${name}_${suffix}`)) suffix++;
