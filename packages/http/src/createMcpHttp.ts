@@ -70,46 +70,58 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
 
   const httpContextStorage = new AsyncLocalStorage<McpHttpContext>();
 
-  const server = new Server({ name, version }, { capabilities: { tools: {} } });
+  // Creates a new Server instance with all handlers registered.
+  // Stateless mode calls this per-request (SDK forbids reconnecting one Server to a
+  // new transport while a previous transport is still attached).
+  // Stateful mode calls this once and reuses the same server across sessions.
+  function setupServer(): Server {
+    const srv = new Server({ name, version }, { capabilities: { tools: {} } });
 
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: tools.map((t) => ({
-      name: t.name,
-      description: t.description,
-      inputSchema: t.inputSchema,
-    })),
-  }));
+    srv.setRequestHandler(ListToolsRequestSchema, async () => ({
+      tools: tools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema,
+      })),
+    }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (req) => {
-    const toolName = req.params.name;
-    const tool = tools.find((t) => t.name === toolName);
+    srv.setRequestHandler(CallToolRequestSchema, async (req) => {
+      const toolName = req.params.name;
+      const tool = tools.find((t) => t.name === toolName);
 
-    if (!tool) {
-      return {
-        content: [{ type: "text" as const, text: `Unknown tool: "${toolName}"` }],
-        isError: true,
-      };
-    }
+      if (!tool) {
+        return {
+          content: [{ type: "text" as const, text: `Unknown tool: "${toolName}"` }],
+          isError: true,
+        };
+      }
 
-    const ctx = httpContextStorage.getStore() ?? buildEmptyCtx();
-    const rawArgs = (req.params.arguments ?? {}) as Record<string, unknown>;
-    const enrichedArgs = mergeHeaderParams(tool.inputSchema, rawArgs, ctx.headerParams, warn);
+      const ctx = httpContextStorage.getStore() ?? buildEmptyCtx();
+      const rawArgs = (req.params.arguments ?? {}) as Record<string, unknown>;
+      const enrichedArgs = mergeHeaderParams(tool.inputSchema, rawArgs, ctx.headerParams, warn);
 
-    return onToolCall(tool, enrichedArgs, ctx);
-  });
+      return onToolCall(tool, enrichedArgs, ctx);
+    });
+
+    return srv;
+  }
+
+  // Stateful: one shared server; stateless: per-request server from setupServer().
+  const statefulServer = session === "stateful" ? setupServer() : null;
 
   // Stateful mode: session map keeps transports alive between requests.
-  // Stateless mode: new transport per request, server is shared.
+  // Stateless mode: new server+transport per request.
   const sessionMap = new Map<string, StreamableHTTPServerTransport>();
   let closed = false;
 
   async function makeTransport(): Promise<StreamableHTTPServerTransport> {
+    const srv = session === "stateful" ? statefulServer! : setupServer();
     const t = new StreamableHTTPServerTransport({
       sessionIdGenerator:
         session === "stateful" ? (sessionIdGenerator ?? randomUUID) : undefined,
       enableJsonResponse,
     });
-    await server.connect(t);
+    await srv.connect(t);
     return t;
   }
 
@@ -242,7 +254,7 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
     handleNodeRequest,
     async close() {
       closed = true;
-      await server.close();
+      await statefulServer?.close();
       for (const t of sessionMap.values()) {
         await t.close().catch(() => {});
       }
