@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import type { HTTPMethod } from "./types.js";
 
-/** Convert a string to snake_case: lowercase, replace non-alphanumeric chars with `_`, trim `_`. */
+/** Convert a string to snake_case: split on camelCase, replace non-alphanumeric chars with `_`, lowercase, trim `_`. */
 function toSnakeCase(s: string): string {
   return s
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2") // insert `_` before uppercase letters
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
@@ -23,9 +24,9 @@ function classifySegment(segment: string): { type: "static" | "param"; name: str
 /**
  * Generate a deterministic MCP tool name from an HTTP method and URL path.
  *
- * The name is at most 64 characters. If the natural name exceeds that, the last
- * 7 characters are replaced by `_h` + a 6-character SHA-256 prefix derived from
- * `method:url`, giving a total of exactly 64 characters.
+ * The name is at most 64 characters. If the natural name exceeds that, it is
+ * truncated to 56 characters and `_h<6-char-hash>` is appended, for a total of
+ * exactly 64 characters. The hash is derived from `method:url`.
  */
 export function generateToolName(method: HTTPMethod, url: string): string {
   // Step 1: tokenize URL
@@ -46,7 +47,7 @@ export function generateToolName(method: HTTPMethod, url: string): string {
 
   // Step 4: build name
   const hasParams = params.length > 0;
-  const paramSuffix = params.join("_and_");
+  const paramSuffix = params.map(toSnakeCase).join("_and_");
 
   let name: string;
 

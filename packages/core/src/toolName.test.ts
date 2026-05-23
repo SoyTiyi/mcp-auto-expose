@@ -12,10 +12,10 @@ describe("generateToolName - CRUD table", () => {
     assert.equal(generateToolName("GET", "/api/users/:id"), "get_users_by_id");
   });
 
-  it("GET /api/teams/:teamId/users/:userId → get_users_by_teamId_and_userId (multiple params)", () => {
+  it("GET /api/teams/:teamId/users/:userId → get_users_by_team_id_and_user_id (multiple params)", () => {
     assert.equal(
       generateToolName("GET", "/api/teams/:teamId/users/:userId"),
-      "get_users_by_teamId_and_userId",
+      "get_users_by_team_id_and_user_id",
     );
   });
 
