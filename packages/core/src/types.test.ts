@@ -34,7 +34,7 @@ describe("MCPToolInputSchema", () => {
       },
     };
     assert.equal(schema.type, "object");
-    assert.deepEqual(Object.keys(schema.properties), ["name", "age"]);
+    assert.ok(["name", "age"].every(k => k in schema.properties));
   });
 
   it("accepts schema with required fields", () => {

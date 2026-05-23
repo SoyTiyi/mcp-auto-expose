@@ -34,9 +34,5 @@ export interface MCPTool {
   name: string;
   description: string;
   inputSchema: MCPToolInputSchema;
-  _source: {
-    framework: "fastify" | "express";
-    method: HTTPMethod;
-    url: string;
-  };
+  _source: Pick<RouteDescriptor, "framework" | "method" | "url">;
 }
