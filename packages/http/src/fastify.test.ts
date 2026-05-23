@@ -113,7 +113,7 @@ describe("mcpFastifyPlugin — routing", () => {
   });
 
   it("POST with method mismatch returns 400", async () => {
-    const opts = makeOpts();
+    const opts = makeOpts({ requireSep2243: true });
     const fastify = Fastify({ logger: false });
     await fastify.register(mcpFastifyPlugin, opts);
     await fastify.ready();

@@ -153,7 +153,7 @@ describe("createMcpHttp — origin guard", () => {
 
 describe("createMcpHttp — SEP-2243 guard", () => {
   it("POST with mcp-method/body mismatch returns 400", async () => {
-    const opts = makeOpts();
+    const opts = makeOpts({ requireSep2243: true });
     await withServer(opts, async (url) => {
       const { status, body } = await postMcp(
         url,
@@ -166,7 +166,7 @@ describe("createMcpHttp — SEP-2243 guard", () => {
   });
 
   it("POST without Mcp-Method returns 400", async () => {
-    const opts = makeOpts();
+    const opts = makeOpts({ requireSep2243: true });
     await withServer(opts, async (url) => {
       const { status } = await postMcp(url, {
         jsonrpc: "2.0",

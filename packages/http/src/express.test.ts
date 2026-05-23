@@ -138,7 +138,7 @@ describe("mountMcpExpress — routing", () => {
   });
 
   it("POST with method mismatch returns 400", async () => {
-    const opts = makeOpts();
+    const opts = makeOpts({ requireSep2243: true });
     await withExpressServer(opts, null, async (url) => {
       const { status, body } = await postMcp(
         url,

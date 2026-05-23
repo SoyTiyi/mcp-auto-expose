@@ -31,6 +31,9 @@ export interface McpHttpOptions {
   sessionIdGenerator?: () => string;
   enableJsonResponse?: boolean;
   warnOnNonLocalhost?: boolean;
+  /** Enforce SEP-2243 header coherence (Mcp-Method + Mcp-Name). Default false.
+   *  Enable in browser-facing deployments to mitigate CSRF/DNS-rebinding. */
+  requireSep2243?: boolean;
   tools: MCPTool[];
   name: string;
   version: string;
@@ -60,6 +63,7 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
     sessionIdGenerator,
     enableJsonResponse = false,
     warnOnNonLocalhost = true,
+    requireSep2243 = false,
     tools,
     name,
     version,
@@ -170,22 +174,24 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
       transport = await makeTransport();
     }
 
-    // 2. SEP-2243 validation (POST only)
+    // 2. SEP-2243 validation (POST only, when opt-in)
     if (req.method === "POST") {
-      const sep2243Result = validateSep2243(
-        req.headers as Record<string, string | string[] | undefined>,
-        req.body,
-      );
-      if (!sep2243Result.ok) {
-        if (session === "stateless") {
-          transport.close().catch(() => {});
+      if (requireSep2243) {
+        const sep2243Result = validateSep2243(
+          req.headers as Record<string, string | string[] | undefined>,
+          req.body,
+        );
+        if (!sep2243Result.ok) {
+          if (session === "stateless") {
+            transport.close().catch(() => {});
+          }
+          replyJson(res, 400, { error: sep2243Result.reason });
+          return;
         }
-        replyJson(res, 400, { error: sep2243Result.reason });
-        return;
       }
 
-      const mcpMethod = sep2243Result.mcp?.method ?? "";
-      const mcpName = sep2243Result.mcp?.name ?? "";
+      const mcpMethod = req.headers["mcp-method"] as string ?? "";
+      const mcpName = req.headers["mcp-name"] as string ?? "";
       const headerParams = extractHeaderParams(
         req.headers as Record<string, string | string[] | undefined>,
       );
