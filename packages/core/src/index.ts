@@ -5,3 +5,5 @@ export type {
   RouteDescriptor,
   MCPTool,
 } from "./types.js";
+
+export { resolveTool } from "./resolveTool.js";
