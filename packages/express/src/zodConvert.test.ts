@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod/v3";
 import { convertCached, specToRouteSchema } from "./zodConvert.js";
+import { mcpHeader } from "./mcpHeader.js";
 
 describe("convertCached", () => {
   it("z.object({ id: z.string() }) produces JSON Schema with type object and required id", () => {
@@ -28,6 +29,45 @@ describe("convertCached", () => {
     const result1 = convertCached(schema);
     const result2 = convertCached(schema);
     assert.ok(Object.is(result1, result2), "should be the same reference");
+  });
+});
+
+describe("mcpHeader annotation", () => {
+  it("mcpHeader(z.string()) on a z.object property produces x-mcp-header: true", () => {
+    const schema = z.object({ tenant_id: mcpHeader(z.string()) });
+    const result = convertCached(schema);
+    const properties = result["properties"] as Record<string, Record<string, unknown>>;
+    assert.ok(properties, "properties should exist");
+    assert.equal(properties["tenant_id"]?.["x-mcp-header"], true);
+  });
+
+  it("mcpHeader with .describe() preserves both description and x-mcp-header", () => {
+    const schema = z.object({ tenant_id: mcpHeader(z.string().describe("Tenant from auth")) });
+    const result = convertCached(schema);
+    const properties = result["properties"] as Record<string, Record<string, unknown>>;
+    const prop = properties["tenant_id"];
+    assert.ok(prop, "property should exist");
+    assert.equal(prop["description"], "Tenant from auth");
+    assert.equal(prop["x-mcp-header"], true);
+  });
+
+  it("a property WITHOUT mcpHeader() does NOT get x-mcp-header annotation", () => {
+    const schema = z.object({
+      tenant_id: mcpHeader(z.string()),
+      invoice_id: z.string(),
+    });
+    const result = convertCached(schema);
+    const properties = result["properties"] as Record<string, Record<string, unknown>>;
+    assert.equal(properties["tenant_id"]?.["x-mcp-header"], true);
+    assert.equal(properties["invoice_id"]?.["x-mcp-header"], undefined);
+  });
+
+  it("mcpHeader(z.number()) works on non-string types", () => {
+    const schema = z.object({ count: mcpHeader(z.number()) });
+    const result = convertCached(schema);
+    const properties = result["properties"] as Record<string, Record<string, unknown>>;
+    assert.equal(properties["count"]?.["x-mcp-header"], true);
+    assert.equal(properties["count"]?.["type"], "number");
   });
 });
 

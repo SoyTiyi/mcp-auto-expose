@@ -2,6 +2,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import type { ZodTypeAny } from "zod/v3";
 import type { RouteSchema } from "@mcp-auto-expose/core";
 import { warn } from "./warn.js";
+import { isMcpHeader } from "./mcpHeader.js";
 
 // McpExposeSpec is defined here; mcpExpose.ts (Task 3) will import it from here.
 export interface McpExposeSpec {
@@ -35,6 +36,23 @@ export function convertCached(schema: ZodTypeAny): Record<string, unknown> {
     warn("schema-has-ref", {
       hint: "use flat z.object; recursive schemas become {}",
     });
+  }
+
+  // Inject "x-mcp-header": true on properties marked with mcpHeader()
+  try {
+    const def = (schema as unknown as { _def?: { typeName?: string; shape?: () => Record<string, ZodTypeAny> } })._def;
+    if (def?.typeName === "ZodObject" && typeof def.shape === "function") {
+      const properties = out["properties"] as Record<string, Record<string, unknown>> | undefined;
+      if (properties) {
+        for (const [propName, propSchema] of Object.entries(def.shape())) {
+          if (isMcpHeader(propSchema) && properties[propName]) {
+            properties[propName]["x-mcp-header"] = true;
+          }
+        }
+      }
+    }
+  } catch {
+    // Guard: non-critical annotation injection — skip silently if anything fails
   }
 
   conversionCache.set(schema, out);
