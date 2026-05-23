@@ -12,12 +12,15 @@ type ExpressLayer = {
   };
   handle?: { stack?: ExpressLayer[] } & ((...a: unknown[]) => void);
   regexp?: RegExp & { fast_slash?: boolean };
-  path?: string; // Express 5: populated on sub-router layers
+  path?: string; // Express 5.0.x: populated on sub-router layers at construction time
+  slash?: boolean; // Express 5.1+: true when mounted at "/"
 };
 
 export interface WalkOptions {
   strictSchema?: boolean; // default: true (applied in walk())
   basePath?: string; // initial mountPath — ADDITIVE prefix for all discovered URLs
+  /** Internal: supplied by autoExpose to enable Express 5.1+ mount path recovery */
+  mountRegistry?: WeakMap<object, string>;
 }
 
 function getRootStack(app: unknown): ExpressLayer[] {
@@ -87,7 +90,7 @@ function walk(
         continue;
       }
 
-      const childMount = recoverMountPath(layer, mountPath);
+      const childMount = recoverMountPath(layer, mountPath, opts.mountRegistry);
       walk(subStack, joinPath(mountPath, childMount), out, seen, opts);
     }
     // Any other middleware (body-parser, cors, etc.) => ignore
@@ -120,14 +123,34 @@ function methodsOf(methods: Record<string, boolean>, url: string): HTTPMethod[] 
     });
 }
 
-function recoverMountPath(layer: ExpressLayer, parentMount: string): string {
-  // Express 5: layer.path is populated
+function recoverMountPath(
+  layer: ExpressLayer,
+  parentMount: string,
+  mountRegistry?: WeakMap<object, string>,
+): string {
+  // Express 5.0.x: layer.path is populated at construction time
   if (layer.path && typeof layer.path === "string") return layer.path;
 
-  const regexp = layer.regexp;
-  if (!regexp) return "";
+  // Express 5.1+ (router@2.x): mount registry populated by autoExpose wrapper
+  if (mountRegistry && layer.handle && typeof layer.handle === "function") {
+    const recorded = mountRegistry.get(layer.handle as object);
+    if (recorded !== undefined) return recorded;
+  }
 
-  // Mounted at "/" — fast_slash shortcut
+  const regexp = layer.regexp;
+  if (!regexp) {
+    // Express 5.1+: layer has matchers[] instead of regexp; path is not accessible post-registration.
+    // Only warn if it's a real sub-router (not a fast-slash "/" mount)
+    if (!layer.slash) {
+      warn("unknown-layer-shape", {
+        parentMount,
+        hint: "call autoExpose(app) before app.use(path, router) for Express 5.1+ mount path recovery",
+      });
+    }
+    return "";
+  }
+
+  // Mounted at "/" — fast_slash shortcut (Express 4)
   if (regexp.fast_slash === true) return "";
 
   // Express 4 canonical regex pattern (from express-list-endpoints)

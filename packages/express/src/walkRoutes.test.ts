@@ -189,3 +189,37 @@ describe("walkRoutes — test 14: basePath prefix", () => {
     assert.equal(result[0]?.url, "/prefix/users");
   });
 });
+
+describe("walkRoutes — test 15: mountRegistry for Express 5.1+ sub-router mount path", () => {
+  it("uses mountRegistry to recover mount path when layer.path and layer.regexp are absent", () => {
+    const mountRegistry = new WeakMap<object, string>();
+
+    // Simulate a sub-router handle with no layer.path / layer.regexp (Express 5.1+)
+    function routerHandle() {}
+    (routerHandle as unknown as { stack: unknown[] }).stack = [
+      {
+        route: {
+          path: "/users",
+          methods: { get: true },
+          stack: [],
+        },
+      },
+    ];
+
+    mountRegistry.set(routerHandle, "/api");
+
+    const fakeStack = [
+      {
+        name: "router",
+        handle: routerHandle as unknown as { stack: unknown[] } & ((...a: unknown[]) => void),
+        regexp: undefined,
+        path: undefined,
+        slash: false,
+      },
+    ];
+
+    const descriptors = walkRoutes(mockApp(fakeStack), { strictSchema: false, mountRegistry });
+    assert.equal(descriptors.length, 1);
+    assert.equal(descriptors[0]?.url, "/api/users");
+  });
+});

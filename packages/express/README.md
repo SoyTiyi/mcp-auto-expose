@@ -27,6 +27,11 @@ import { autoExpose, mcpExpose } from "@mcp-auto-expose/express";
 import { startStdio } from "@mcp-auto-expose/stdio";
 
 const app = express();
+
+// Call autoExpose BEFORE app.use(path, router) so the wrapper can intercept
+// sub-router mounts. This is required for Express 5.1+ mount path recovery.
+const handle = autoExpose(app);
+
 const router = Router();
 
 router.get(
@@ -56,10 +61,7 @@ router.post(
   (_req, res) => res.status(201).json({}),
 );
 
-app.use("/api", router);
-
-// Do NOT call app.listen() before autoExpose — routes must be registered first.
-const handle = autoExpose(app);
+app.use("/api", router); // intercepted — mount path "/api" is captured automatically
 
 await startStdio({
   name: "my-express-server",
@@ -200,13 +202,16 @@ console.error("debug info");
 
 The adapter supports both Express 4 and Express 5. Differences are handled internally and transparently.
 
-| Feature | Express 4 | Express 5 |
-|---|---|---|
-| Router access | `app._router` (private) — requires calling `app.lazyrouter()` first to force initialization | `app.router` (lazy public getter) — no manual init needed |
-| Mount path on sub-router layers | Recovered by parsing the layer's compiled regexp (canonical Express 4 pattern) | Available directly as `layer.path` (string) |
-| Peer dependency range | `"express": "^4 \|\| ^5"` | Same |
+| Feature | Express 4 | Express 5.0.x | Express 5.1+ (router@2.x) |
+|---|---|---|---|
+| Router access | `app._router` (private) — requires calling `app.lazyrouter()` first | `app.router` (lazy public getter) | Same as 5.0.x |
+| Mount path on sub-router layers | Recovered by parsing the layer's compiled regexp | Available directly as `layer.path` (string) | **Not stored** — recovered via `autoExpose` wrapper |
+| Peer dependency range | `"express": "^4 \|\| ^5"` | Same | Same |
 
-No configuration is needed to select between versions — the adapter detects the available property at runtime.
+**Express 5.1+ ordering requirement:** In Express 5.1+, the mount path is compiled into a closure and is not accessible after `app.use()` returns. To recover it, `autoExpose(app)` wraps `app.use` to record mount paths before they are consumed. This only works for `app.use` calls made **after** `autoExpose` is called.
+
+- Call `autoExpose(app)` **before** any `app.use(path, router)` call.
+- If sub-routers are mounted before `autoExpose`, their prefix cannot be recovered and a warning is emitted to `stderr` (graceful degradation — routes are still discovered without the prefix).
 
 ---
 

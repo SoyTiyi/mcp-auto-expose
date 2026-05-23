@@ -121,6 +121,23 @@ describe("autoExpose", () => {
     }
   });
 
+  it("recovers mount prefix when autoExpose is called before app.use (Express 5.1+ pattern)", () => {
+    const app = express();
+    // autoExpose BEFORE app.use — wraps app.use to intercept future mounts
+    const handle = autoExpose(app, { strictSchema: true });
+
+    const router = express.Router();
+    router.get("/users", mcpExpose({ description: "List users" }), (_req: Request, res: Response) => res.json([]));
+    app.use("/api", router); // intercepted by autoExpose wrapper
+
+    const tools = handle.tools();
+    assert.equal(tools.length, 1);
+    // Full path with prefix must be recovered
+    assert.equal(tools[0]!._source.url, "/api/users");
+    // generateToolName("/api/users", "GET") strips "api" as a prefix segment → "list_users"
+    assert.equal(tools[0]!.name, "list_users");
+  });
+
   it("a route with mcpExpose({ hide: true }) is NOT in tools()", () => {
     const app = express();
     const router = express.Router();

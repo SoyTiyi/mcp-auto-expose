@@ -6,6 +6,9 @@ import { startStdio } from "@mcp-auto-expose/stdio";
 const app = express();
 app.use(express.json());
 
+// autoExpose must be called before mounting sub-routers (Express 5.1+ requirement for mount path recovery)
+const handle = autoExpose(app, { strictSchema: true });
+
 const router = Router();
 
 router.get(
@@ -38,10 +41,7 @@ router.post(
   },
 );
 
-app.use("/api", router);
-
-// strictSchema:true is the default; explicit here to document that routes without mcpExpose are skipped
-const handle = autoExpose(app, { strictSchema: true });
+app.use("/api", router); // intercepted: mount path "/api" is recorded in handle's registry
 
 await startStdio({
   name: "express-sandbox",
