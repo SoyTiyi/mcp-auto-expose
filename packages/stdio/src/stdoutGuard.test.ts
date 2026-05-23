@@ -1,17 +1,14 @@
-import { describe, it, before, after, afterEach } from "node:test";
+import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 // Capture stderr writes for assertion
 function captureStderr(): { lines: string[]; stop: () => void } {
   const lines: string[] = [];
   const original = process.stderr.write.bind(process.stderr);
-  (process.stderr as NodeJS.WriteStream).write = (
-    chunk: string | Uint8Array,
-    ..._rest: unknown[]
-  ): boolean => {
+  process.stderr.write = ((chunk: string | Uint8Array) => {
     lines.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf-8"));
     return true;
-  };
+  }) as typeof process.stderr.write;
   return { lines, stop: () => { process.stderr.write = original; } };
 }
 
@@ -19,13 +16,10 @@ function captureStderr(): { lines: string[]; stop: () => void } {
 function captureStdout(): { lines: string[]; stop: () => void } {
   const lines: string[] = [];
   const original = process.stdout.write.bind(process.stdout);
-  (process.stdout as NodeJS.WriteStream).write = (
-    chunk: string | Uint8Array,
-    ..._rest: unknown[]
-  ): boolean => {
+  process.stdout.write = ((chunk: string | Uint8Array) => {
     lines.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf-8"));
     return true;
-  };
+  }) as typeof process.stdout.write;
   return { lines, stop: () => { process.stdout.write = original; } };
 }
 
