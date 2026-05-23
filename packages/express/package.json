@@ -1,0 +1,40 @@
+{
+  "name": "@mcp-auto-expose/express",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "test": "node --import tsx --test src/*.test.ts"
+  },
+  "peerDependencies": {
+    "express": "^4 || ^5",
+    "zod": "^3 || ^4"
+  },
+  "dependencies": {
+    "@mcp-auto-expose/core": "workspace:*",
+    "zod-to-json-schema": "^3.25.2"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.15.3",
+    "eslint": "^9.39.1",
+    "express": "^5.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "5.9.2",
+    "zod": "^4.0.0"
+  }
+}
