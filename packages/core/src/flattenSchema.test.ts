@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { flattenSchema, renameOnCollision } from "./flattenSchema.js";
+import { flattenSchema, buildToolSchema, renameOnCollision } from "./flattenSchema.js";
 
 describe("flattenSchema", () => {
   it("1. undefined → returns { type: 'object', properties: {} } with no required key", () => {
@@ -144,6 +144,92 @@ describe("flattenSchema", () => {
       },
       required: ["teamId", "userId", "title"],
     });
+  });
+});
+
+describe("buildToolSchema — paramMap", () => {
+  it("1. params only — paramMap keys map to 'params'", () => {
+    const { inputSchema, paramMap } = buildToolSchema({
+      params: {
+        type: "object",
+        properties: { id: { type: "string" }, slug: { type: "string" } },
+        required: ["id"],
+      },
+    });
+    assert.deepEqual(inputSchema.properties, { id: { type: "string" }, slug: { type: "string" } });
+    assert.deepEqual(paramMap, { id: "params", slug: "params" });
+  });
+
+  it("2. params + body collision — renamed key keeps body origin", () => {
+    const { inputSchema, paramMap } = buildToolSchema({
+      params: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+      },
+      body: {
+        type: "object",
+        properties: { id: { type: "number" }, email: { type: "string" } },
+        required: ["id"],
+      },
+    });
+    assert.ok("id" in inputSchema.properties, "id from params present");
+    assert.ok("body_id" in inputSchema.properties, "body_id (renamed) present");
+    assert.equal(paramMap["id"], "params");
+    assert.equal(paramMap["body_id"], "body");
+    assert.equal(paramMap["email"], "body");
+  });
+
+  it("3. body primitive (non-object) — wrapped under 'body' key, paramMap has body: 'body'", () => {
+    const { inputSchema, paramMap } = buildToolSchema({
+      body: { type: "string" },
+    });
+    assert.ok("body" in inputSchema.properties, "'body' key should be present");
+    assert.deepEqual(paramMap, { body: "body" });
+  });
+
+  it("4. $ref-skipped property — does NOT appear in paramMap", () => {
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    process.stderr.write = () => true;
+
+    let result;
+    try {
+      result = buildToolSchema({
+        body: {
+          type: "object",
+          properties: {
+            user: { $ref: "#/definitions/User" },
+            name: { type: "string" },
+          },
+        },
+      });
+    } finally {
+      process.stderr.write = originalWrite;
+    }
+
+    assert.ok(!("user" in result.paramMap), "'user' ($ref) must not be in paramMap");
+    assert.equal(result.paramMap["name"], "body");
+  });
+
+  it("5. querystring properties — paramMap keys map to 'querystring'", () => {
+    const { paramMap } = buildToolSchema({
+      querystring: {
+        type: "object",
+        properties: { page: { type: "number" }, limit: { type: "number" } },
+      },
+    });
+    assert.deepEqual(paramMap, { page: "querystring", limit: "querystring" });
+  });
+
+  it("6. mixed params + querystring + body — all origins recorded", () => {
+    const { paramMap } = buildToolSchema({
+      params: { type: "object", properties: { id: { type: "string" } } },
+      querystring: { type: "object", properties: { format: { type: "string" } } },
+      body: { type: "object", properties: { name: { type: "string" } } },
+    });
+    assert.equal(paramMap["id"], "params");
+    assert.equal(paramMap["format"], "querystring");
+    assert.equal(paramMap["name"], "body");
   });
 });
 

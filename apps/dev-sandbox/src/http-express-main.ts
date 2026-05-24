@@ -3,26 +3,19 @@
  *
  * Start:  node --import tsx apps/dev-sandbox/src/http-express-main.ts
  *
- * curl examples (see packages/http/README.md for full reference):
- *
- *   # initialize
- *   curl -sN -X POST http://127.0.0.1:3000/mcp \
- *     -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
- *     -H "Mcp-Method: initialize" \
- *     -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}'
+ * curl examples:
  *
  *   # list tools
  *   curl -sN -X POST http://127.0.0.1:3000/mcp \
  *     -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
  *     -H "Mcp-Method: tools/list" \
- *     -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+ *     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
  *
- *   # call tool with Mcp-Param-* header
+ *   # invoke a tool (should return real backend data, not a placeholder)
  *   curl -sN -X POST http://127.0.0.1:3000/mcp \
  *     -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
- *     -H "Mcp-Method: tools/call" -H "Mcp-Name: get_user_by_id" \
- *     -H "Mcp-Param-Tenant-Id: acme" \
- *     -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_user_by_id","arguments":{"id":"u1"}}}'
+ *     -H "Mcp-Method: tools/call" -H "Mcp-Name: list_users" \
+ *     -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_users","arguments":{}}}'
  */
 
 import express, { Router } from "express";
@@ -40,7 +33,7 @@ const router = Router();
 router.get(
   "/users",
   mcpExpose({ description: "List all users" }),
-  (_req, res) => { res.json([]); },
+  (_req, res) => { res.json([{ id: "u1", name: "Ana" }, { id: "u2", name: "Bob" }]); },
 );
 
 router.get(
@@ -49,7 +42,10 @@ router.get(
     params: z.object({ id: z.string(), tenant_id: mcpHeader(z.string()) }),
     description: "Get user by ID (tenant_id carried via Mcp-Param-Tenant-Id)",
   }),
-  (_req, res) => { res.json({}); },
+  (req, res) => {
+    const { id } = req.params as { id: string };
+    res.json({ id, name: id === "u1" ? "Ana" : "Unknown" });
+  },
 );
 
 router.post(
@@ -58,7 +54,10 @@ router.post(
     body: z.object({ name: z.string(), email: z.string().email() }),
     description: "Create a new user",
   }),
-  (_req, res) => { res.status(201).json({}); },
+  (req, res) => {
+    const { name, email } = req.body as { name: string; email: string };
+    res.status(201).json({ id: "u3", name, email });
+  },
 );
 
 router.delete(
@@ -76,9 +75,7 @@ const { router: mcpRouter } = mountMcpExpress({
   version: "0.0.0",
   tools,
   allowedOrigins: ["http://localhost:5173"],
-  onToolCall: async (tool, args) => ({
-    content: [{ type: "text", text: `[smoke] ${tool.name} called with ${JSON.stringify(args)}` }],
-  }),
+  apiBaseUrl: "http://127.0.0.1:3000",
 });
 
 app.use(mcpRouter);

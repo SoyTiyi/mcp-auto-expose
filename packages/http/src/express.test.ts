@@ -20,7 +20,7 @@ const TEST_TOOL = {
   name: "get_item",
   description: "Get an item by id",
   inputSchema: TOOL_SCHEMA,
-  _source: { framework: "express" as const, method: "GET" as const, url: "/items/:id" },
+  _source: { framework: "express" as const, method: "GET" as const, url: "/items/:id", paramMap: { id: "params" as const, tenant_id: "params" as const } },
 };
 
 type CallCapture = { tool: string; args: unknown; ctx: unknown };

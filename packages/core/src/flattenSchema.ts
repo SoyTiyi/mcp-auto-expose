@@ -1,10 +1,16 @@
-import type { MCPToolInputSchema, RouteSchema } from "./types.js";
+import type { MCPToolInputSchema, ParamOrigin, RouteSchema } from "./types.js";
 
-export function flattenSchema(routeSchema?: RouteSchema): MCPToolInputSchema {
+export interface BuiltToolSchema {
+  inputSchema: MCPToolInputSchema;
+  paramMap: Record<string, ParamOrigin>;
+}
+
+export function buildToolSchema(routeSchema?: RouteSchema): BuiltToolSchema {
   const out: MCPToolInputSchema = { type: "object", properties: {} };
   const required: string[] = [];
+  const paramMap: Record<string, ParamOrigin> = {};
 
-  if (!routeSchema) return out;
+  if (!routeSchema) return { inputSchema: out, paramMap };
 
   for (const source of ["params", "querystring", "body"] as const) {
     const sub = routeSchema[source];
@@ -14,6 +20,7 @@ export function flattenSchema(routeSchema?: RouteSchema): MCPToolInputSchema {
     // wrap it entirely under the `source` key (e.g. body: { type: "string" })
     if ((sub as { type?: string }).type !== "object") {
       out.properties[source] = sub;
+      paramMap[source] = source;
       continue;
     }
 
@@ -44,6 +51,7 @@ export function flattenSchema(routeSchema?: RouteSchema): MCPToolInputSchema {
         key in out.properties ? renameOnCollision(key, source) : key;
 
       out.properties[finalKey] = propSchema;
+      paramMap[finalKey] = source;
       if (subRequired.includes(key)) {
         required.push(finalKey);
       }
@@ -51,7 +59,11 @@ export function flattenSchema(routeSchema?: RouteSchema): MCPToolInputSchema {
   }
 
   if (required.length > 0) out.required = required;
-  return out;
+  return { inputSchema: out, paramMap };
+}
+
+export function flattenSchema(routeSchema?: RouteSchema): MCPToolInputSchema {
+  return buildToolSchema(routeSchema).inputSchema;
 }
 
 export function renameOnCollision(key: string, source: string): string {

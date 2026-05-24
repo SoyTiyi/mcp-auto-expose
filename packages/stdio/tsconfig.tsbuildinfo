@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/registerTools.test.ts","./src/registerTools.ts","./src/startStdio.test.ts","./src/startStdio.ts","./src/stdoutGuard.test.ts","./src/stdoutGuard.ts"],"version":"5.9.2"}
+{"root":["./src/index.ts","./src/registertools.test.ts","./src/registertools.ts","./src/startstdio.test.ts","./src/startstdio.ts","./src/stdoutguard.test.ts","./src/stdoutguard.ts"],"version":"5.9.2"}

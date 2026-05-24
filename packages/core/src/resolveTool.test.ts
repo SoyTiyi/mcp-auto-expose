@@ -40,6 +40,7 @@ describe("resolveTool", () => {
       framework: "fastify",
       method: "GET",
       url: "/api/users/:id",
+      paramMap: { id: "params" },
     });
   });
 

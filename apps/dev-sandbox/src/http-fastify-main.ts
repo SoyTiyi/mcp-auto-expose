@@ -3,71 +3,98 @@
  *
  * Start:  node --import tsx apps/dev-sandbox/src/http-fastify-main.ts
  *
- * curl examples (same paths as http-express-main.ts but port 3001):
- *
- *   # initialize
- *   curl -sN -X POST http://127.0.0.1:3001/mcp \
- *     -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
- *     -H "Mcp-Method: initialize" \
- *     -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}'
+ * curl examples (port 3001):
  *
  *   # list tools
  *   curl -sN -X POST http://127.0.0.1:3001/mcp \
  *     -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
  *     -H "Mcp-Method: tools/list" \
- *     -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+ *     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+ *
+ *   # invoke a tool (should return real backend data)
+ *   curl -sN -X POST http://127.0.0.1:3001/mcp \
+ *     -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+ *     -H "Mcp-Method: tools/call" -H "Mcp-Name: list_api_users" \
+ *     -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_api_users","arguments":{}}}'
  */
 
 import Fastify from "fastify";
-import type { MCPTool } from "@mcp-auto-expose/http";
+import { autoExpose } from "@mcp-auto-expose/fastify";
 import { mcpFastifyPlugin } from "@mcp-auto-expose/http/fastify";
 
-// Manual tool definitions (Fastify adapter doesn't use autoExpose for HTTP yet)
-const tools: MCPTool[] = [
-  {
-    name: "list_users",
-    description: "List all users",
-    inputSchema: { type: "object", properties: {}, required: [] },
-    _source: { framework: "fastify", method: "GET", url: "/users" },
-  },
-  {
-    name: "get_user_by_id",
-    description: "Get user by ID (tenant_id via Mcp-Param-Tenant-Id)",
-    inputSchema: {
-      type: "object",
-      properties: {
-        id: { type: "string" },
-        tenant_id: { type: "string", "x-mcp-header": true },
-      },
-      required: ["id"],
-    },
-    _source: { framework: "fastify", method: "GET", url: "/users/:id" },
-  },
-  {
-    name: "create_user",
-    description: "Create a new user",
-    inputSchema: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        email: { type: "string" },
-      },
-      required: ["name", "email"],
-    },
-    _source: { framework: "fastify", method: "POST", url: "/users" },
-  },
-];
-
 const fastify = Fastify({ logger: false });
+await fastify.register(autoExpose);
+
+fastify.get(
+  "/api/users",
+  {},
+  async () => [{ id: "u1", name: "Ana" }, { id: "u2", name: "Bob" }],
+);
+
+fastify.get(
+  "/api/users/:id",
+  {
+    schema: {
+      description: "Get user by ID",
+      params: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+      },
+    },
+  },
+  async (req) => {
+    const { id } = req.params as { id: string };
+    return { id, name: id === "u1" ? "Ana" : "Unknown" };
+  },
+);
+
+fastify.post(
+  "/api/users",
+  {
+    schema: {
+      description: "Create a new user",
+      body: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          email: { type: "string" },
+        },
+        required: ["name", "email"],
+      },
+    },
+  },
+  async (req) => {
+    const { name, email } = req.body as { name: string; email: string };
+    return { id: "u3", name, email };
+  },
+);
+
+fastify.delete(
+  "/api/users/:id",
+  {
+    schema: {
+      description: "Delete a user by ID",
+      params: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+      },
+    },
+  },
+  async () => ({ deleted: true }),
+);
+
+await fastify.ready();
+
+const tools = fastify.mcpAutoExpose.tools();
 
 await fastify.register(mcpFastifyPlugin, {
   name: "http-fastify-smoke",
   version: "0.0.0",
   tools,
   allowedOrigins: ["http://localhost:5173"],
-  onToolCall: async (tool, args) => ({
-    content: [{ type: "text", text: `[smoke] ${tool.name} called with ${JSON.stringify(args)}` }],
-  }),
+  apiBaseUrl: "http://127.0.0.1:3001",
 });
 
 await fastify.listen({ port: 3001, host: "127.0.0.1" });

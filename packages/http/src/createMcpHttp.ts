@@ -4,7 +4,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import type { MCPTool } from "@mcp-auto-expose/core";
+import type { MCPTool, HttpCallerOptions } from "@mcp-auto-expose/core";
+import { makeHttpCaller } from "@mcp-auto-expose/core";
 import { checkOrigin } from "./origin.js";
 import { validateSep2243 } from "./sep2243.js";
 import { extractHeaderParams, mergeHeaderParams } from "./headerParams.js";
@@ -37,7 +38,9 @@ export interface McpHttpOptions {
   tools: MCPTool[];
   name: string;
   version: string;
-  onToolCall: OnToolCallHttp;
+  apiBaseUrl?: string;
+  apiCallerOptions?: Omit<HttpCallerOptions, "baseUrl">;
+  onToolCall?: OnToolCallHttp;
 }
 
 export type McpIncomingMessage = IncomingMessage & { auth?: unknown; body?: unknown };
@@ -67,8 +70,21 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
     tools,
     name,
     version,
-    onToolCall,
   } = options;
+
+  const onToolCall: OnToolCallHttp = (() => {
+    if (options.onToolCall) return options.onToolCall;
+    if (options.apiBaseUrl) {
+      const caller = makeHttpCaller({
+        baseUrl: options.apiBaseUrl,
+        ...options.apiCallerOptions,
+      });
+      return (tool, args) => caller(tool, args);
+    }
+    throw new Error(
+      "[mcp-auto-expose/http] createMcpHttp requires either 'apiBaseUrl' or 'onToolCall'.",
+    );
+  })();
 
   localhostWarn(warnOnNonLocalhost);
 

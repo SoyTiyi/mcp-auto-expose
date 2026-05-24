@@ -108,7 +108,7 @@ describe("MCPTool", () => {
       name: "list_users",
       description: "List all users",
       inputSchema: { type: "object", properties: {} },
-      _source: { framework: "fastify", method: "GET", url: "/users" },
+      _source: { framework: "fastify", method: "GET", url: "/users", paramMap: {} },
     };
     assert.equal(tool.name, "list_users");
     assert.equal(tool.description, "List all users");
@@ -131,7 +131,7 @@ describe("MCPTool", () => {
         },
         required: ["name", "email"],
       },
-      _source: { framework: "express", method: "POST", url: "/users" },
+      _source: { framework: "express", method: "POST", url: "/users", paramMap: { name: "body", email: "body" } },
     };
     assert.equal(tool.inputSchema.required?.length, 2);
     assert.equal(tool._source.method, "POST");

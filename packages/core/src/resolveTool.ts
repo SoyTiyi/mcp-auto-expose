@@ -1,6 +1,6 @@
 import type { MCPTool, RouteDescriptor } from "./types.js";
 import { generateToolName } from "./toolName.js";
-import { flattenSchema } from "./flattenSchema.js";
+import { buildToolSchema } from "./flattenSchema.js";
 
 export function resolveTool(descriptor: RouteDescriptor): MCPTool {
   const { framework, method, url, schema } = descriptor;
@@ -10,10 +10,12 @@ export function resolveTool(descriptor: RouteDescriptor): MCPTool {
     schema?.summary ??
     `${method} ${url} — auto-descubierto por mcp-auto-expose`;
 
+  const { inputSchema, paramMap } = buildToolSchema(schema);
+
   return {
     name: generateToolName(method, url),
     description,
-    inputSchema: flattenSchema(schema),
-    _source: { framework, method, url },
+    inputSchema,
+    _source: { framework, method, url, paramMap },
   };
 }

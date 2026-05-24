@@ -8,7 +8,7 @@ function makeTool(name: string): MCPTool {
     name,
     description: `Tool ${name}`,
     inputSchema: { type: "object", properties: {} },
-    _source: { framework: "fastify", method: "GET", url: `/${name}` },
+    _source: { framework: "fastify", method: "GET", url: `/${name}`, paramMap: {} },
   };
 }
 

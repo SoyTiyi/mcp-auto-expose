@@ -8,7 +8,7 @@ import type { Server } from "@modelcontextprotocol/sdk/server";
 export interface RegisterToolsOptions {
   server: Server;
   tools: MCPTool[];
-  onToolCall?: (
+  onToolCall: (
     tool: MCPTool,
     args: unknown,
   ) => Promise<{ content: Array<{ type: "text"; text: string }> }>;
@@ -34,20 +34,6 @@ export function registerTools({ server, tools, onToolCall }: RegisterToolsOption
       };
     }
 
-    if (onToolCall) {
-      return await onToolCall(tool, req.params.arguments ?? {});
-    }
-
-    return {
-      content: [
-        {
-          type: "text",
-          text:
-            `[fase2-placeholder] tool "${tool.name}" maps to ` +
-            `${tool._source.method} ${tool._source.url}. ` +
-            `Actual invocation will be wired in a later phase.`,
-        },
-      ],
-    };
+    return await onToolCall(tool, req.params.arguments ?? {});
   });
 }

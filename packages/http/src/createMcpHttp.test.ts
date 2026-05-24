@@ -18,7 +18,12 @@ const TEST_TOOL = {
   name: "get_item",
   description: "Get an item by id",
   inputSchema: TOOL_SCHEMA,
-  _source: { framework: "express" as const, method: "GET" as const, url: "/items/:id" },
+  _source: {
+    framework: "express" as const,
+    method: "GET" as const,
+    url: "/items/:id",
+    paramMap: { id: "params" as const, tenant_id: "params" as const },
+  },
 };
 
 type CallCapture = { tool: string; args: unknown; ctx: unknown };
@@ -36,7 +41,7 @@ function makeOpts(overrides?: Partial<McpHttpOptions>): McpHttpOptions & { calls
     },
     ...overrides,
     calls,
-  };
+  } as McpHttpOptions & { calls: CallCapture[] };
 }
 
 async function withServer(
@@ -268,5 +273,38 @@ describe("createMcpHttp — MCP roundtrip", () => {
     const opts = makeOpts();
     const handle = createMcpHttp(opts);
     await assert.doesNotReject(() => handle.close());
+  });
+});
+
+describe("createMcpHttp — fail-fast and apiBaseUrl", () => {
+  it("throws when neither onToolCall nor apiBaseUrl provided", () => {
+    assert.throws(
+      () =>
+        createMcpHttp({
+          name: "test",
+          version: "0.0.0",
+          tools: [TEST_TOOL],
+          allowedOrigins: [],
+        }),
+      /apiBaseUrl.*onToolCall|onToolCall.*apiBaseUrl/i,
+    );
+  });
+
+  it("onToolCall takes precedence over apiBaseUrl", async () => {
+    const calls: string[] = [];
+    const handle = createMcpHttp({
+      name: "test",
+      version: "0.0.0",
+      tools: [TEST_TOOL],
+      allowedOrigins: [],
+      apiBaseUrl: "http://127.0.0.1:9", 
+      onToolCall: async (tool) => {
+        calls.push(tool.name);
+        return { content: [{ type: "text", text: "explicit" }] };
+      },
+    });
+    await assert.doesNotReject(() => handle.close());
+    
+    assert.equal(calls.length, 0);
   });
 });

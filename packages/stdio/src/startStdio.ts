@@ -1,6 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import type { MCPTool } from "@mcp-auto-expose/core";
+import type { MCPTool, HttpCallerOptions } from "@mcp-auto-expose/core";
+import { makeHttpCaller } from "@mcp-auto-expose/core";
 import { installStdoutGuard } from "./stdoutGuard.js";
 import { registerTools } from "./registerTools.js";
 
@@ -8,9 +9,9 @@ export interface StartStdioOptions {
   name: string;
   version: string;
   tools: MCPTool[];
-  /** Default true. Set false only in isolated tests. */
   installGuard?: boolean;
-  /** Optional hook for tool invocations. Fase 2 default = structured placeholder. */
+  apiBaseUrl?: string;
+  apiCallerOptions?: Omit<HttpCallerOptions, "baseUrl">;
   onToolCall?: (
     tool: MCPTool,
     args: unknown,
@@ -31,6 +32,19 @@ export async function startStdio(
   /** For testing only — allows injecting pre-built server/transport. */
   _deps?: Deps,
 ): Promise<StartStdioHandle> {
+  const resolvedOnToolCall = (() => {
+    if (options.onToolCall) return options.onToolCall;
+    if (options.apiBaseUrl) {
+      return makeHttpCaller({
+        baseUrl: options.apiBaseUrl,
+        ...options.apiCallerOptions,
+      });
+    }
+    throw new Error(
+      "[mcp-auto-expose/stdio] startStdio requires either 'apiBaseUrl' or 'onToolCall'.",
+    );
+  })();
+
   if (options.installGuard !== false) installStdoutGuard();
 
   const server =
@@ -40,7 +54,7 @@ export async function startStdio(
       { capabilities: { tools: {} } },
     );
 
-  registerTools({ server, tools: options.tools, onToolCall: options.onToolCall });
+  registerTools({ server, tools: options.tools, onToolCall: resolvedOnToolCall });
 
   const transport = _deps?.transport ?? new StdioServerTransport();
   await server.connect(transport);

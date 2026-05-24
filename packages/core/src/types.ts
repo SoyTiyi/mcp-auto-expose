@@ -7,6 +7,8 @@ export type HTTPMethod =
   | "HEAD"
   | "OPTIONS";
 
+export type ParamOrigin = "params" | "querystring" | "body";
+
 export interface MCPToolInputSchema {
   type: "object";
   properties: Record<string, unknown>;
@@ -34,5 +36,7 @@ export interface MCPTool {
   name: string;
   description: string;
   inputSchema: MCPToolInputSchema;
-  _source: Pick<RouteDescriptor, "framework" | "method" | "url">;
+  _source: Pick<RouteDescriptor, "framework" | "method" | "url"> & {
+    paramMap: Record<string, ParamOrigin>;
+  };
 }
