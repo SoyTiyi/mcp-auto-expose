@@ -33,41 +33,46 @@ describe("convertCached", () => {
 });
 
 describe("mcpHeader annotation", () => {
-  it("mcpHeader(z.string()) on a z.object property produces x-mcp-header: true", () => {
+  it("mcpHeader(z.string()) on a z.object property emits x-mcp-header with PascalCase fallback name", () => {
     const schema = z.object({ tenant_id: mcpHeader(z.string()) });
     const result = convertCached(schema);
-    const properties = result["properties"] as Record<string, Record<string, unknown>>;
-    assert.ok(properties, "properties should exist");
-    assert.equal(properties["tenant_id"]?.["x-mcp-header"], true);
+    const props = result["properties"] as Record<string, Record<string, unknown>>;
+    assert.equal(props["tenant_id"]?.["x-mcp-header"], "TenantId");
   });
 
-  it("mcpHeader with .describe() preserves both description and x-mcp-header", () => {
-    const schema = z.object({ tenant_id: mcpHeader(z.string().describe("Tenant from auth")) });
+  it("mcpHeader(z.string(), 'Region') emits the verbatim name", () => {
+    const schema = z.object({ region: mcpHeader(z.string(), "Region") });
     const result = convertCached(schema);
-    const properties = result["properties"] as Record<string, Record<string, unknown>>;
-    const prop = properties["tenant_id"];
-    assert.ok(prop, "property should exist");
-    assert.equal(prop["description"], "Tenant from auth");
-    assert.equal(prop["x-mcp-header"], true);
+    const props = result["properties"] as Record<string, Record<string, unknown>>;
+    assert.equal(props["region"]?.["x-mcp-header"], "Region");
+  });
+
+  it("mcpHeader with .describe() preserves both description and the header name", () => {
+    const schema = z.object({ tenant_id: mcpHeader(z.string().describe("Tenant from auth"), "TenantId") });
+    const result = convertCached(schema);
+    const props = result["properties"] as Record<string, Record<string, unknown>>;
+    const prop = props["tenant_id"];
+    assert.equal(prop?.["description"], "Tenant from auth");
+    assert.equal(prop?.["x-mcp-header"], "TenantId");
   });
 
   it("a property WITHOUT mcpHeader() does NOT get x-mcp-header annotation", () => {
     const schema = z.object({
-      tenant_id: mcpHeader(z.string()),
+      tenant_id: mcpHeader(z.string(), "TenantId"),
       invoice_id: z.string(),
     });
     const result = convertCached(schema);
-    const properties = result["properties"] as Record<string, Record<string, unknown>>;
-    assert.equal(properties["tenant_id"]?.["x-mcp-header"], true);
-    assert.equal(properties["invoice_id"]?.["x-mcp-header"], undefined);
+    const props = result["properties"] as Record<string, Record<string, unknown>>;
+    assert.equal(props["tenant_id"]?.["x-mcp-header"], "TenantId");
+    assert.equal(props["invoice_id"]?.["x-mcp-header"], undefined);
   });
 
-  it("mcpHeader(z.number()) works on non-string types", () => {
-    const schema = z.object({ count: mcpHeader(z.number()) });
+  it("mcpHeader(z.number()) works on non-string primitive types", () => {
+    const schema = z.object({ count: mcpHeader(z.number(), "Count") });
     const result = convertCached(schema);
-    const properties = result["properties"] as Record<string, Record<string, unknown>>;
-    assert.equal(properties["count"]?.["x-mcp-header"], true);
-    assert.equal(properties["count"]?.["type"], "number");
+    const props = result["properties"] as Record<string, Record<string, unknown>>;
+    assert.equal(props["count"]?.["x-mcp-header"], "Count");
+    assert.equal(props["count"]?.["type"], "number");
   });
 });
 
