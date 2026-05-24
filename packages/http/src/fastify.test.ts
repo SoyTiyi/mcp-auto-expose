@@ -8,7 +8,7 @@ const TOOL_SCHEMA = {
   type: "object" as const,
   properties: {
     id: { type: "string" as const },
-    tenant_id: { type: "string" as const, "x-mcp-header": true },
+    tenant_id: { type: "string" as const, "x-mcp-header": "Tenant-Id" },
   },
   required: ["id"],
 };
@@ -123,7 +123,9 @@ describe("mcpFastifyPlugin — routing", () => {
       { "Mcp-Method": "tools/call" },
     );
     assert.equal(status, 400);
-    assert.equal((body as Record<string, unknown>)["error"], "method-mismatch");
+    const parsedBody = body as { error?: { code: number; message: string } };
+    assert.equal(parsedBody.error?.code, -32001);
+    assert.equal(parsedBody.error?.message, "HeaderMismatch");
     await fastify.close();
   });
 
