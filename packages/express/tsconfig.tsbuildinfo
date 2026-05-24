@@ -1,1 +1,1 @@
-{"root":["./src/autoExpose.test.ts","./src/autoExpose.ts","./src/index.ts","./src/mcpExpose.test.ts","./src/mcpExpose.ts","./src/walkRoutes.test.ts","./src/walkRoutes.ts","./src/warn.ts","./src/zodConvert.test.ts","./src/zodConvert.ts"],"version":"5.9.2"}
+{"root":["./src/autoExpose.test.ts","./src/autoExpose.ts","./src/index.ts","./src/mcpExpose.test.ts","./src/mcpExpose.ts","./src/mcpHeader.ts","./src/walkRoutes.test.ts","./src/walkRoutes.ts","./src/warn.ts","./src/zodConvert.test.ts","./src/zodConvert.ts"],"version":"5.9.2"}

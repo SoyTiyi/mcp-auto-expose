@@ -1,0 +1,1 @@
+{"root":["./src/createMcpHttp.test.ts","./src/createMcpHttp.ts","./src/express.test.ts","./src/express.ts","./src/fastify.test.ts","./src/fastify.ts","./src/headerParams.test.ts","./src/headerParams.ts","./src/index.ts","./src/localhostWarn.ts","./src/origin.test.ts","./src/origin.ts","./src/sep2243.test.ts","./src/sep2243.ts","./src/warn.ts"],"version":"5.9.2"}

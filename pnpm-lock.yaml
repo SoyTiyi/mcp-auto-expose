@@ -26,9 +26,15 @@ importers:
       '@mcp-auto-expose/fastify':
         specifier: workspace:*
         version: link:../../packages/fastify
+      '@mcp-auto-expose/http':
+        specifier: workspace:*
+        version: link:../../packages/http
       '@mcp-auto-expose/stdio':
         specifier: workspace:*
         version: link:../../packages/stdio
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.0.0
+        version: 1.29.0(zod@4.4.3)
       express:
         specifier: ^5.0.0
         version: 5.2.1
