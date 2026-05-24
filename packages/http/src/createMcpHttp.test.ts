@@ -10,7 +10,7 @@ const TOOL_SCHEMA = {
   type: "object" as const,
   properties: {
     id: { type: "string" as const },
-    tenant_id: { type: "string" as const, "x-mcp-header": true },
+    tenant_id: { type: "string" as const, "x-mcp-header": "TenantId" },
   },
   required: ["id"],
 };

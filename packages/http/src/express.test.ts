@@ -11,7 +11,7 @@ const TOOL_SCHEMA = {
   type: "object" as const,
   properties: {
     id: { type: "string" as const },
-    tenant_id: { type: "string" as const, "x-mcp-header": "Tenant-Id" },
+    tenant_id: { type: "string" as const, "x-mcp-header": "TenantId" },
   },
   required: ["id"],
 };
@@ -191,7 +191,7 @@ describe("mountMcpExpress — auth propagation", () => {
 });
 
 describe("mountMcpExpress — Mcp-Param header injection", () => {
-  it("Mcp-Param-Tenant-Id populates ctx.headerParams and enriches args", async () => {
+  it("Mcp-Param-TenantId populates ctx.headerParams and enriches args", async () => {
     const opts = makeOpts();
     await withExpressServer(opts, null, async (url) => {
       await initializeMcp(url);
@@ -201,7 +201,7 @@ describe("mountMcpExpress — Mcp-Param header injection", () => {
           jsonrpc: "2.0", id: 6, method: "tools/call",
           params: { name: "get_item", arguments: { id: "abc" } },
         },
-        { "Mcp-Method": "tools/call", "Mcp-Name": "get_item", "Mcp-Param-Tenant-Id": "t42" },
+        { "Mcp-Method": "tools/call", "Mcp-Name": "get_item", "Mcp-Param-TenantId": "t42" },
       );
       const lastCall = opts.calls[opts.calls.length - 1];
       assert.ok(lastCall);

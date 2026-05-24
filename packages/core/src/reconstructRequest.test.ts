@@ -77,13 +77,13 @@ describe("reconstructRequest", () => {
     assert.equal(result.url, "/files/folder%2Fsub%20file");
   });
 
-  it("5. x-mcp-header: true arg → goes to headers, NOT body/url/query", () => {
+  it("5. x-mcp-header: string arg → goes to headers verbatim, NOT body/url/query", () => {
     const tool = makeTool({
       inputSchema: {
         type: "object",
         properties: {
           id: { type: "string" },
-          tenant_id: { type: "string", "x-mcp-header": true },
+          tenant_id: { type: "string", "x-mcp-header": "TenantId" },
         },
       },
       _source: {
@@ -95,7 +95,7 @@ describe("reconstructRequest", () => {
     });
     const result = reconstructRequest(tool, { id: "u1", tenant_id: "acme" });
     assert.equal(result.url, "/users/u1");
-    assert.equal(result.headers["Mcp-Param-Tenant-Id"], "acme");
+    assert.equal(result.headers["Mcp-Param-TenantId"], "acme");
     assert.ok(!result.url.includes("acme"), "tenant_id must not appear in url");
     assert.equal(result.querystring, "");
   });

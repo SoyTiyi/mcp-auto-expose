@@ -158,7 +158,7 @@ describe("makeHttpCaller", () => {
         type: "object",
         properties: {
           id: { type: "string" },
-          tenant_id: { type: "string", "x-mcp-header": true },
+          tenant_id: { type: "string", "x-mcp-header": "TenantId" },
         },
       },
       _source: {
@@ -170,7 +170,7 @@ describe("makeHttpCaller", () => {
     });
     await caller(tool, { id: "u1", tenant_id: "acme" });
     const req = lastRequest()!;
-    assert.equal(req.headers["mcp-param-tenant-id"], "acme");
+    assert.equal(req.headers["mcp-param-tenantid"], "acme");
     assert.equal(req.url, "/users/u1");
   });
 

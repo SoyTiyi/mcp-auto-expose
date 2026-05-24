@@ -48,8 +48,9 @@ export function reconstructRequest(
     const value = args[key];
 
     // x-mcp-header args travel as Mcp-Param-* to the backend
-    if (properties[key]?.["x-mcp-header"] === true) {
-      headers[toMcpParamHeader(key)] = String(value);
+    const annotation = properties[key]?.["x-mcp-header"];
+    if (typeof annotation === "string" && annotation.length > 0) {
+      headers[`Mcp-Param-${annotation}`] = String(value);
       continue;
     }
 
