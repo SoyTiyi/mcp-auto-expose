@@ -29,7 +29,7 @@ Construir un paquete framework-agnóstico `@mcp-auto-expose/http` que monta un e
 1. Reutiliza `StreamableHTTPServerTransport` del SDK 1.29.0.
 2. Valida cabeceras SEP-2243 antes de ceder el control al SDK.
 3. Aplica whitelist de `Origin` configurable.
-4. Soporta una **extensión propia** `x-mcp-header` para parámetros transportados como `Mcp-Param-*`.
+4. Soporta la extensión **`x-mcp-header`** definida en SEP-2243 Final para parámetros transportados como `Mcp-Param-{Name}`.
 5. **No** implementa autenticación; documenta el patrón de delegación.
 6. Mantiene paridad de catálogo con stdio (mismos `MCPTool`, mismo `onToolCall`).
 
@@ -157,7 +157,7 @@ export type McpFastifyPluginOptions = McpHttpOptions & FastifyPluginOptions;
 export const mcpFastifyPlugin: FastifyPluginAsync<McpFastifyPluginOptions>;
 ```
 
-### 3.4 Pipeline `x-mcp-header` (extensión propia, no SEP-2243)
+### 3.4 Pipeline `x-mcp-header` (definido en SEP-2243 Final)
 
 #### 3.4.1 Declaración por el usuario
 
@@ -194,12 +194,19 @@ router.post("/invoices", mcpExpose({
 
 La propiedad **permanece visible al LLM** (puede pasarla como argumento normal). La anotación informa al adapter HTTP qué params puede recoger también de cabeceras.
 
-#### 3.4.3 Mapping snake_case ⇄ Kebab-Case-Header
+#### 3.4.3 Naming verbatim del header
 
-- `tenant_id` ⇄ `Mcp-Param-Tenant-Id`
-- `invoice_external_ref` ⇄ `Mcp-Param-Invoice-External-Ref`
+El valor del campo `x-mcp-header` se usa **verbatim** como segmento del header HTTP — sin kebabize ni transformación adicional.
 
-Helpers: `kebabize(snake: string): string`, `unkebabize(header: string): string` en `packages/http/src/headerParams.ts`.
+- `"x-mcp-header": "TenantId"` ⇄ `Mcp-Param-TenantId`
+- `"x-mcp-header": "Region"` ⇄ `Mcp-Param-Region`
+
+Constraints del valor (SEP-2243 §"Custom Headers from Tool Parameters"):
+
+- No vacío.
+- Solo ASCII (excluyendo espacio y `:`).
+- Case-insensitivamente único entre todos los `x-mcp-header` del mismo `inputSchema`.
+- Solo aplicable a propiedades de tipo primitivo (`string`, `number`, `boolean`).
 
 #### 3.4.4 Política de merge body ↔ header
 
@@ -211,6 +218,16 @@ Helpers: `kebabize(snake: string): string`, `unkebabize(header: string): string`
 | Discrepan | `{tenant_id:"a"}` | `"b"` | `{tenant_id:"b"}` | warn `header-body-mismatch` a stderr |
 
 "Header gana" porque la spec posiciona las cabeceras como capa de routing del edge; un proxy/gateway puede haberlas inyectado autoritativamente. Documentado en README.
+
+#### 3.4.5 Encoding sentinel Base64 para valores no representables como ASCII plano
+
+El cliente codifica el valor del parámetro como Base64 estándar (RFC 4648 §4, con padding `=`) envuelto en el sentinel `=?base64?<valor>?=` cuando el string serializado:
+
+- empieza o termina con espacio (0x20) o tab (0x09),
+- contiene cualquier carácter fuera de 0x20-0x7E (no-ASCII), o
+- contiene control chars (0x00-0x1F o 0x7F).
+
+El servidor decodifica el sentinel antes de comparar contra el body. Falla de decode ⇒ error `-32001` (`HeaderMismatch`).
 
 ### 3.5 Validación SEP-2243 — `packages/http/src/sep2243.ts`
 
@@ -539,7 +556,7 @@ curl -sN -X GET http://127.0.0.1:3000/mcp -H "Accept: text/event-stream"
 
 ## 8. Notas y decisiones explícitas
 
-1. **Extensión `x-mcp-header`** NO está definida en `docs/principal-document.txt`. Es una extensión propia del proyecto coherente con el espíritu de SEP-2243 (cabeceras como capa de routing/contexto). El README debe declararlo como tal.
+1. **Extensión `x-mcp-header`** está definida en SEP-2243 Final (https://modelcontextprotocol.io/seps/2243-http-standardization) — no es una extensión propia del proyecto. El README debe declararla como parte del estándar MCP.
 
 2. **Auth delegada al framework** NO está mandada explícitamente por `docs/principal-document.txt`. El doc autoriza Bearer/OAuth pero no obliga a delegar al framework. La decisión se justifica por: (a) el adapter no debe duplicar ecosistemas maduros (Passport, JWT, Fastify auth); (b) mantener el adapter framework-agnóstico en la capa transport; (c) el SDK 1.29 ya soporta `AuthInfo` propagado vía `req.auth`.
 
