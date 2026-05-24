@@ -2,7 +2,6 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { RouteOptions } from "fastify";
 import { adaptRouteOptions } from "./adaptRouteOptions.js";
-import { mcpHeader } from "./mcpHeader.js";
 
 function makeRouteOptions(overrides: Partial<RouteOptions> = {}): RouteOptions {
   return {
@@ -120,20 +119,5 @@ describe("adaptRouteOptions", () => {
       makeRouteOptions({ method: "HEAD" as RouteOptions["method"], url: "/api/users" }),
     );
     assert.deepEqual(result, []);
-  });
-});
-
-describe("mcpHeader (fastify)", () => {
-  it("mcpHeader(someZodSchema) returns the same schema instance (identity check)", () => {
-    // Use a minimal object as a stand-in for a Zod schema — we only test identity
-    const original = { _type: "string" };
-    const marked = mcpHeader(original);
-    assert.ok(Object.is(marked, original), "mcpHeader should return the exact same schema instance");
-  });
-
-  it("mcpHeader preserves the schema object reference for any schema-shaped object", () => {
-    const original = { _type: "number" };
-    const marked = mcpHeader(original);
-    assert.ok(Object.is(marked, original), "mcpHeader should return the exact same schema instance");
   });
 });

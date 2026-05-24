@@ -1,16 +1,20 @@
-// mcpHeader marks a Zod schema to indicate this parameter can also be transmitted
-// via HTTP header Mcp-Param-<KebabCase(fieldName)>.
+// mcpHeader stamps the SEP-2243 `x-mcp-header` annotation onto a Fastify JSON Schema
+// property object. Fastify users compose plain JSON Schema (not Zod), so this helper
+// performs the stamping inline — no marker WeakSet needed.
 //
-// For Fastify, this is a no-op marker (Fastify uses plain JSON Schema, not Zod).
-// The helper exists for API symmetry and to support a future Fastify+Zod integration.
+// Usage:
+//   params: {
+//     type: "object",
+//     properties: {
+//       tenant_id: mcpHeader({ type: "string" }, "TenantId"),
+//     },
+//   }
+//
+// Produces Mcp-Param-TenantId on the wire (verbatim, no transformation).
 
-const mcpHeaderSet = new WeakSet<object>();
-
-export function mcpHeader<T extends object>(schema: T): T {
-  mcpHeaderSet.add(schema);
-  return schema;
-}
-
-export function isMcpHeader(schema: object): boolean {
-  return mcpHeaderSet.has(schema);
+export function mcpHeader<T extends Record<string, unknown>>(
+  schema: T,
+  name: string,
+): T & { "x-mcp-header": string } {
+  return { ...schema, "x-mcp-header": name };
 }
