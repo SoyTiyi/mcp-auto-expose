@@ -8,7 +8,8 @@ import type { MCPTool, HttpCallerOptions } from "@mcp-auto-expose/core";
 import { makeHttpCaller } from "@mcp-auto-expose/core";
 import { checkOrigin } from "./origin.js";
 import { validateSep2243 } from "./sep2243.js";
-import { extractHeaderParams, mergeHeaderParams } from "./headerParams.js";
+// headerParams: extractHeaderParams / mergeHeaderParams removed in Task 6 rewrite.
+// validateAndMergeHeaderParams wiring happens in Task 9.
 import { localhostWarn } from "./localhostWarn.js";
 import { warn } from "./warn.js";
 
@@ -59,6 +60,30 @@ function replyJson(res: ServerResponse, status: number, body: Record<string, unk
   res.end(JSON.stringify(body));
 }
 
+function extractRequestId(body: unknown): number | string | null {
+  if (body !== null && typeof body === "object") {
+    const id = (body as Record<string, unknown>)["id"];
+    if (typeof id === "number" || typeof id === "string") return id;
+  }
+  return null;
+}
+
+function replyHeaderMismatch(res: ServerResponse, body: unknown, reason: string): void {
+  const id = extractRequestId(body);
+  res.writeHead(400, { "Content-Type": "application/json" });
+  res.end(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code: -32001,
+        message: "HeaderMismatch",
+        data: { reason },
+      },
+    }),
+  );
+}
+
 export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
   const {
     allowedOrigins = [],
@@ -66,11 +91,17 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
     sessionIdGenerator,
     enableJsonResponse = false,
     warnOnNonLocalhost = true,
-    requireSep2243 = false,
     tools,
     name,
     version,
   } = options;
+
+  const requireSep2243 = options.requireSep2243 ?? true;
+  if (requireSep2243 === false) {
+    warn("sep2243-disabled", {
+      hint: "SEP-2243 enforcement is OFF — only for testing. Production MUST keep it enabled.",
+    });
+  }
 
   const onToolCall: OnToolCallHttp = (() => {
     if (options.onToolCall) return options.onToolCall;
@@ -118,7 +149,7 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
 
       const ctx = httpContextStorage.getStore() ?? buildEmptyCtx();
       const rawArgs = (req.params.arguments ?? {}) as Record<string, unknown>;
-      const enrichedArgs = mergeHeaderParams(tool.inputSchema as unknown as Record<string, unknown>, rawArgs, ctx.headerParams, warn);
+      const enrichedArgs = rawArgs; // TODO(Task 9): replace with validateAndMergeHeaderParams
 
       return onToolCall(tool, enrichedArgs, ctx);
     });
@@ -201,16 +232,15 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
           if (session === "stateless") {
             transport.close().catch(() => {});
           }
-          replyJson(res, 400, { error: sep2243Result.reason });
+          replyHeaderMismatch(res, req.body, sep2243Result.detail ?? sep2243Result.reason ?? "Validation failed");
           return;
         }
       }
 
       const mcpMethod = req.headers["mcp-method"] as string ?? "";
       const mcpName = req.headers["mcp-name"] as string ?? "";
-      const headerParams = extractHeaderParams(
-        req.headers as Record<string, string | string[] | undefined>,
-      );
+      // TODO(Task 9): replace {} with extractHeaderParams / validateAndMergeHeaderParams pipeline
+      const headerParams: Record<string, string> = {};
 
       const ctx: McpHttpContext = {
         headers: req.headers as Record<string, string | string[] | undefined>,
