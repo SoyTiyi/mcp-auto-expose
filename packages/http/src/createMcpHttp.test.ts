@@ -434,3 +434,94 @@ describe("createMcpHttp SEP-2243 default enforcement", () => {
     await handle.close();
   });
 });
+
+describe("createMcpHttp Mcp-Param-* coherence", () => {
+  const tool = {
+    name: "create_invoice",
+    description: "",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        tenant_id: { type: "string", "x-mcp-header": "TenantId" },
+        invoice_id: { type: "string" },
+      },
+      required: ["tenant_id", "invoice_id"],
+    },
+    _source: {
+      framework: "express" as const,
+      method: "POST" as const,
+      url: "/invoices",
+      paramMap: { tenant_id: "body" as const, invoice_id: "body" as const },
+    },
+  };
+
+  it("body has tenant_id but Mcp-Param-TenantId header missing → -32001", async () => {
+    const handle = createMcpHttp({
+      name: "t",
+      version: "0",
+      tools: [tool],
+      onToolCall: async () => ({ content: [{ type: "text" as const, text: "ok" }] }),
+    });
+    const req = makeMockReq(
+      "POST",
+      {
+        "content-type": "application/json",
+        "mcp-method": "tools/call",
+        "mcp-name": "create_invoice",
+      },
+      {
+        jsonrpc: "2.0",
+        id: 9,
+        method: "tools/call",
+        params: {
+          name: "create_invoice",
+          arguments: { tenant_id: "acme", invoice_id: "i1" },
+        },
+      },
+    );
+    const res = makeMockRes();
+    await handle.handleNodeRequest(req, res);
+    assert.equal(res._status, 400);
+    const parsed = JSON.parse(res._body ?? "{}") as {
+      error?: { code: number; data?: { reason: string } };
+    };
+    assert.equal(parsed.error?.code, -32001);
+    assert.match(parsed.error?.data?.reason ?? "", /TenantId/);
+    await handle.close();
+  });
+
+  it("Mcp-Param-TenantId mismatches body.tenant_id → -32001", async () => {
+    const handle = createMcpHttp({
+      name: "t",
+      version: "0",
+      tools: [tool],
+      onToolCall: async () => ({ content: [{ type: "text" as const, text: "ok" }] }),
+    });
+    const req = makeMockReq(
+      "POST",
+      {
+        "content-type": "application/json",
+        "mcp-method": "tools/call",
+        "mcp-name": "create_invoice",
+        "mcp-param-tenantid": "evil",
+      },
+      {
+        jsonrpc: "2.0",
+        id: 10,
+        method: "tools/call",
+        params: {
+          name: "create_invoice",
+          arguments: { tenant_id: "acme", invoice_id: "i1" },
+        },
+      },
+    );
+    const res = makeMockRes();
+    await handle.handleNodeRequest(req, res);
+    assert.equal(res._status, 400);
+    const parsed = JSON.parse(res._body ?? "{}") as {
+      error?: { code: number };
+    };
+    assert.equal(parsed.error?.code, -32001);
+    await handle.close();
+  });
+});

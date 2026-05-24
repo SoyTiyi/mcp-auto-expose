@@ -8,8 +8,8 @@ import type { MCPTool, HttpCallerOptions } from "@mcp-auto-expose/core";
 import { makeHttpCaller } from "@mcp-auto-expose/core";
 import { checkOrigin } from "./origin.js";
 import { validateSep2243 } from "./sep2243.js";
-// headerParams: extractHeaderParams / mergeHeaderParams removed in Task 6 rewrite.
-// validateAndMergeHeaderParams wiring happens in Task 9.
+import { validateAndMergeHeaderParams } from "./headerParams.js";
+import { sanitizeToolXMcpHeaders } from "./xMcpHeader.js";
 import { localhostWarn } from "./localhostWarn.js";
 import { warn } from "./warn.js";
 
@@ -103,6 +103,12 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
     });
   }
 
+  // Sanitize x-mcp-header annotations on every tool's inputSchema at construction time.
+  // Invalid (non-string / non-primitive / duplicate) annotations are stripped + warned.
+  for (const t of tools) {
+    sanitizeToolXMcpHeaders(t.name, t.inputSchema as unknown as Record<string, unknown>, warn);
+  }
+
   const onToolCall: OnToolCallHttp = (() => {
     if (options.onToolCall) return options.onToolCall;
     if (options.apiBaseUrl) {
@@ -149,9 +155,22 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
 
       const ctx = httpContextStorage.getStore() ?? buildEmptyCtx();
       const rawArgs = (req.params.arguments ?? {}) as Record<string, unknown>;
-      const enrichedArgs = rawArgs; // TODO(Task 9): replace with validateAndMergeHeaderParams
+      const merge = validateAndMergeHeaderParams(
+        tool.inputSchema as unknown as Record<string, unknown>,
+        rawArgs,
+        ctx.headers,
+      );
+      // Defensive fallback: the outer POST pipeline already rejects mismatches,
+      // but if validation slipped through (e.g. GET/SSE path or missing context),
+      // surface the error as a non-throwing tool result.
+      if (!merge.ok) {
+        return {
+          content: [{ type: "text" as const, text: merge.detail }],
+          isError: true,
+        };
+      }
 
-      return onToolCall(tool, enrichedArgs, ctx);
+      return onToolCall(tool, merge.args, ctx);
     });
 
     return srv;
@@ -239,8 +258,40 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
 
       const mcpMethod = req.headers["mcp-method"] as string ?? "";
       const mcpName = req.headers["mcp-name"] as string ?? "";
-      // TODO(Task 9): replace {} with extractHeaderParams / validateAndMergeHeaderParams pipeline
+
+      // SEP-2243 Mcp-Param-* coherence check (only for tools/call with a known tool).
+      // Fails fast with JSON-RPC -32001 / HTTP 400 before dispatching into the SDK.
       const headerParams: Record<string, string> = {};
+      if (mcpMethod === "tools/call" && mcpName) {
+        const tool = tools.find((t) => t.name === mcpName);
+        if (tool) {
+          const args =
+            (req.body as { params?: { arguments?: Record<string, unknown> } } | null)
+              ?.params?.arguments ?? {};
+          const merge = validateAndMergeHeaderParams(
+            tool.inputSchema as unknown as Record<string, unknown>,
+            args,
+            req.headers as Record<string, string | string[] | undefined>,
+          );
+          if (!merge.ok) {
+            if (session === "stateless") {
+              transport.close().catch(() => {});
+            }
+            replyHeaderMismatch(res, req.body, merge.detail);
+            return;
+          }
+          // Collect props whose value came from a header (not the body) so callbacks
+          // can distinguish header-injected from body-supplied params.
+          for (const [k, v] of Object.entries(merge.args)) {
+            if (
+              typeof v === "string" &&
+              !Object.prototype.hasOwnProperty.call(args, k)
+            ) {
+              headerParams[k] = v;
+            }
+          }
+        }
+      }
 
       const ctx: McpHttpContext = {
         headers: req.headers as Record<string, string | string[] | undefined>,
