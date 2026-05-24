@@ -131,7 +131,7 @@ describe("makeHttpCaller", () => {
   });
 
   it("4. Timeout → isError: true", async () => {
-    const hangServer = http.createServer((_req, _res) => { /* intentionally never responds */ });
+    const hangServer = http.createServer(() => { /* intentionally never responds */ });
     const hangBaseUrl = await new Promise<string>((resolve) => {
       hangServer.listen(0, "127.0.0.1", () => {
         const addr = hangServer.address() as { port: number };

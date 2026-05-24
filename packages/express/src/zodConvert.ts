@@ -64,7 +64,7 @@ export function convertCached(schema: ZodTypeAny): Record<string, unknown> {
 
 function toPascalCase(snake: string): string {
   return snake
-    .split(/[_\-]/)
+    .split(/[_-]/)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join("");
