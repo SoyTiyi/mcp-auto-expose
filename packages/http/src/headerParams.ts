@@ -1,79 +1,144 @@
-import { warn as defaultWarn } from "./warn.js";
-
 const MCP_PARAM_PREFIX = "mcp-param-";
 
-/**
- * Converts snake_case to Title-Kebab-Case for header names.
- * e.g. "tenant_id" → "Tenant-Id"
- * e.g. "invoice_external_ref" → "Invoice-External-Ref"
- */
-export function kebabize(snake: string): string {
-  return snake
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join("-");
+export interface ValidateOk {
+  ok: true;
+  args: Record<string, unknown>;
 }
-
-/**
- * Converts "mcp-param-tenant-id" → "tenant_id".
- * Strips the "mcp-param-" prefix, lowercases, replaces "-" with "_".
- */
-export function unkebabize(mcpParamHeader: string): string {
-  return mcpParamHeader.slice(MCP_PARAM_PREFIX.length).replace(/-/g, "_");
+export interface ValidateFail {
+  ok: false;
+  reason: "header-missing" | "header-mismatch" | "invalid-base64";
+  detail: string;
 }
+export type ValidateResult = ValidateOk | ValidateFail;
 
-/**
- * From a normalized headers map (lowercase keys), extract all headers
- * prefixed with "mcp-param-" and return them as { snake_case_key: value }.
- */
-export function extractHeaderParams(
-  headers: Record<string, string | string[] | undefined>,
-): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(headers)) {
-    if (!key.startsWith(MCP_PARAM_PREFIX)) continue;
-    if (value === undefined) continue;
-    const snakeKey = unkebabize(key);
-    result[snakeKey] = Array.isArray(value) ? value[0]! : value;
+export interface DecodeOk { ok: true; value: string }
+export interface DecodeFail { ok: false; reason: "invalid-base64" }
+export type DecodeResult = DecodeOk | DecodeFail;
+
+function needsEncoding(value: string): boolean {
+  if (value.length === 0) return false;
+  const first = value.charCodeAt(0);
+  const last = value.charCodeAt(value.length - 1);
+  if (first === 0x20 || first === 0x09) return true;
+  if (last === 0x20 || last === 0x09) return true;
+  for (let i = 0; i < value.length; i++) {
+    const c = value.charCodeAt(i);
+    if (c < 0x20 || c === 0x7f || c > 0x7e) return true;
   }
-  return result;
+  return false;
+}
+
+export function encodeHeaderValue(value: string): string {
+  if (!needsEncoding(value)) return value;
+  const b64 = Buffer.from(value, "utf8").toString("base64");
+  return `=?base64?${b64}?=`;
+}
+
+export function decodeHeaderValue(value: string): DecodeResult {
+  const lowerValue = value.toLowerCase();
+  if (!lowerValue.startsWith("=?base64?") || !value.endsWith("?=")) {
+    return { ok: true, value };
+  }
+  const inner = value.slice("=?base64?".length, value.length - "?=".length);
+  try {
+    const decoded = Buffer.from(inner, "base64");
+    if (decoded.toString("base64") !== inner) {
+      return { ok: false, reason: "invalid-base64" };
+    }
+    return { ok: true, value: decoded.toString("utf8") };
+  } catch {
+    return { ok: false, reason: "invalid-base64" };
+  }
 }
 
 /**
- * Given a JSON Schema (output of zodToJsonSchema) and the current args from the
- * JSON-RPC body, produce merged args that incorporate header params.
- *
- * For each property in jsonSchema.properties that has `"x-mcp-header": true`:
- *   - If the key exists in headerParams AND in args AND they differ → use header value + warn
- *   - If only in headerParams → inject into args
- *   - If only in args → keep args value
- * Returns new args object (does not mutate input).
+ * Walks inputSchema.properties and builds a map of
+ * { "mcp-param-<lowercase-name>": "<propKey>" }
+ * for every property carrying a valid x-mcp-header string.
  */
-export function mergeHeaderParams(
-  jsonSchema: Record<string, unknown>,
+export function collectExpectedHeaderParams(
+  inputSchema: Record<string, unknown>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  const properties = inputSchema["properties"] as Record<string, Record<string, unknown>> | undefined;
+  if (!properties) return out;
+  for (const [propKey, prop] of Object.entries(properties)) {
+    const name = prop["x-mcp-header"];
+    if (typeof name !== "string" || name.length === 0) continue;
+    out[`${MCP_PARAM_PREFIX}${name.toLowerCase()}`] = propKey;
+  }
+  return out;
+}
+
+function valueToString(v: unknown): string | undefined {
+  if (typeof v === "string") return v;
+  if (typeof v === "number") return Number.isFinite(v) ? String(v) : undefined;
+  if (typeof v === "boolean") return v ? "true" : "false";
+  return undefined;
+}
+
+/**
+ * Validates SEP-2243 Mcp-Param-* coherence against body args and merges values.
+ *
+ * For each property in inputSchema with a valid x-mcp-header string Name:
+ *  - If body args contain a value but no Mcp-Param-Name header → header-missing.
+ *  - If body args and header are both present and disagree (after Base64 decode) → header-mismatch.
+ *  - If header is encoded with an invalid Base64 sentinel → invalid-base64.
+ *  - If body arg is absent and header is present → inject header value into args.
+ */
+export function validateAndMergeHeaderParams(
+  inputSchema: Record<string, unknown>,
   args: Record<string, unknown>,
-  headerParams: Record<string, string>,
-  warnFn: (code: string, detail?: unknown) => void = defaultWarn,
-): Record<string, unknown> {
+  headers: Record<string, string | string[] | undefined>,
+): ValidateResult {
   const merged: Record<string, unknown> = { ...args };
+  const properties = inputSchema["properties"] as Record<string, Record<string, unknown>> | undefined;
+  if (!properties) return { ok: true, args: merged };
 
-  const properties = jsonSchema["properties"] as Record<string, Record<string, unknown>> | undefined;
-  if (!properties) return merged;
+  for (const [propKey, prop] of Object.entries(properties)) {
+    const name = prop["x-mcp-header"];
+    if (typeof name !== "string" || name.length === 0) continue;
 
-  for (const [key, propSchema] of Object.entries(properties)) {
-    if (!propSchema["x-mcp-header"]) continue;
+    const headerKey = `${MCP_PARAM_PREFIX}${(name as string).toLowerCase()}`;
+    const rawHeader = headers[headerKey];
+    const headerValue = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
 
-    const inHeader = Object.prototype.hasOwnProperty.call(headerParams, key);
-    const inArgs = Object.prototype.hasOwnProperty.call(args, key);
+    const inArgs =
+      Object.prototype.hasOwnProperty.call(args, propKey) &&
+      args[propKey] !== undefined &&
+      args[propKey] !== null;
+    const bodyAsString = inArgs ? valueToString(args[propKey]) : undefined;
 
-    if (!inHeader) continue;
-
-    if (inArgs && args[key] !== headerParams[key]) {
-      warnFn("header-body-mismatch", { key, argsValue: args[key], headerValue: headerParams[key] });
+    if (headerValue === undefined) {
+      if (inArgs) {
+        return {
+          ok: false,
+          reason: "header-missing",
+          detail: `Mcp-Param-${name} header is required because body argument '${propKey}' is present`,
+        };
+      }
+      continue;
     }
 
-    merged[key] = headerParams[key];
+    const decoded = decodeHeaderValue(headerValue);
+    if (!decoded.ok) {
+      return {
+        ok: false,
+        reason: "invalid-base64",
+        detail: `Mcp-Param-${name} value is not valid Base64 inside the =?base64?...?= sentinel`,
+      };
+    }
+
+    if (inArgs && bodyAsString !== undefined && bodyAsString !== decoded.value) {
+      return {
+        ok: false,
+        reason: "header-mismatch",
+        detail: `Mcp-Param-${name} value does not match body argument '${propKey}'`,
+      };
+    }
+
+    merged[propKey] = decoded.value;
   }
 
-  return merged;
+  return { ok: true, args: merged };
 }

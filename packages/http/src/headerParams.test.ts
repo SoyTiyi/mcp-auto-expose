@@ -1,126 +1,150 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { kebabize, unkebabize, extractHeaderParams, mergeHeaderParams } from "./headerParams.js";
+import {
+  encodeHeaderValue,
+  decodeHeaderValue,
+  collectExpectedHeaderParams,
+  validateAndMergeHeaderParams,
+} from "./headerParams.js";
 
-describe("kebabize", () => {
-  it('"tenant_id" → "Tenant-Id"', () => {
-    assert.equal(kebabize("tenant_id"), "Tenant-Id");
+describe("encodeHeaderValue", () => {
+  it("plain ASCII printable stays plain", () => {
+    assert.equal(encodeHeaderValue("us-west1"), "us-west1");
+    assert.equal(encodeHeaderValue("us west 1"), "us west 1");
+    assert.equal(encodeHeaderValue("42"), "42");
   });
-
-  it('"invoice_external_ref" → "Invoice-External-Ref"', () => {
-    assert.equal(kebabize("invoice_external_ref"), "Invoice-External-Ref");
+  it("leading whitespace triggers sentinel", () => {
+    assert.equal(encodeHeaderValue(" us-west1"), "=?base64?IHVzLXdlc3Qx?=");
   });
-
-  it('single word "name" → "Name"', () => {
-    assert.equal(kebabize("name"), "Name");
+  it("trailing whitespace triggers sentinel", () => {
+    assert.equal(encodeHeaderValue("us-west1 "), "=?base64?dXMtd2VzdDEg?=");
   });
-});
-
-describe("unkebabize", () => {
-  it('"mcp-param-tenant-id" → "tenant_id"', () => {
-    assert.equal(unkebabize("mcp-param-tenant-id"), "tenant_id");
+  it("non-ASCII triggers sentinel with standard Base64 (with padding ==)", () => {
+    assert.equal(encodeHeaderValue("Hello, 世界"), "=?base64?SGVsbG8sIOS4lueVjA==?=");
   });
-
-  it('"mcp-param-invoice-external-ref" → "invoice_external_ref"', () => {
-    assert.equal(unkebabize("mcp-param-invoice-external-ref"), "invoice_external_ref");
-  });
-});
-
-describe("extractHeaderParams", () => {
-  it('extracts "mcp-param-tenant-id" and ignores "content-type"', () => {
-    const result = extractHeaderParams({
-      "mcp-param-tenant-id": "t1",
-      "content-type": "application/json",
-    });
-    assert.deepEqual(result, { tenant_id: "t1" });
-  });
-
-  it("returns {} when no mcp-param-* headers are present", () => {
-    const result = extractHeaderParams({
-      "content-type": "application/json",
-      authorization: "Bearer xyz",
-    });
-    assert.deepEqual(result, {});
-  });
-
-  it("multi-value header (string[]) → takes first value", () => {
-    const result = extractHeaderParams({
-      "mcp-param-tenant-id": ["t1", "t2"],
-    });
-    assert.deepEqual(result, { tenant_id: "t1" });
+  it("newline triggers sentinel", () => {
+    assert.equal(encodeHeaderValue("line1\nline2"), "=?base64?bGluZTEKbGluZTI=?=");
   });
 });
 
-describe("mergeHeaderParams", () => {
-  it("matching value in args and headerParams → returns that value, no warning", () => {
-    const warnFn = (code: string) => {
-      assert.fail(`unexpected warn call with code: ${code}`);
-    };
-    const schema = {
-      properties: {
-        tenant_id: { type: "string", "x-mcp-header": true },
-      },
-    };
-    const result = mergeHeaderParams(schema, { tenant_id: "a" }, { tenant_id: "a" }, warnFn);
-    assert.deepEqual(result, { tenant_id: "a" });
+describe("decodeHeaderValue", () => {
+  it("plain value returns as-is", () => {
+    assert.deepEqual(decodeHeaderValue("us-west1"), { ok: true, value: "us-west1" });
   });
-
-  it("header param only (not in args) → injected into result", () => {
-    const schema = {
-      properties: {
-        tenant_id: { type: "string", "x-mcp-header": true },
-      },
-    };
-    const result = mergeHeaderParams(schema, {}, { tenant_id: "a" });
-    assert.deepEqual(result, { tenant_id: "a" });
+  it("sentinel-wrapped Base64 decodes", () => {
+    assert.deepEqual(decodeHeaderValue("=?base64?SGVsbG8=?="), { ok: true, value: "Hello" });
   });
+  it("sentinel prefix is case-insensitive (=?BASE64?)", () => {
+    assert.deepEqual(decodeHeaderValue("=?BASE64?SGVsbG8=?="), { ok: true, value: "Hello" });
+  });
+  it("invalid Base64 inside sentinel → ok: false", () => {
+    const r = decodeHeaderValue("=?base64?!!!?=");
+    assert.equal(r.ok, false);
+  });
+  it("missing closing sentinel → treated as literal", () => {
+    assert.deepEqual(decodeHeaderValue("=?base64?SGVsbG8="), { ok: true, value: "=?base64?SGVsbG8=" });
+  });
+});
 
-  it("discrepancy between args and headerParams → uses header value and calls warnFn", () => {
-    const warned: string[] = [];
-    const warnFn = (code: string) => {
-      warned.push(code);
-    };
+describe("collectExpectedHeaderParams", () => {
+  it("returns a map { 'mcp-param-<lowercase-name>': propKey } for x-mcp-header props", () => {
     const schema = {
       properties: {
-        tenant_id: { type: "string", "x-mcp-header": true },
+        tenant_id: { type: "string", "x-mcp-header": "TenantId" },
+        region: { type: "string", "x-mcp-header": "Region" },
+        invoice_id: { type: "string" },
       },
     };
-    const result = mergeHeaderParams(
+    const result = collectExpectedHeaderParams(schema);
+    assert.deepEqual(result, {
+      "mcp-param-tenantid": "tenant_id",
+      "mcp-param-region": "region",
+    });
+  });
+  it("empty schema returns {}", () => {
+    assert.deepEqual(collectExpectedHeaderParams({}), {});
+  });
+});
+
+describe("validateAndMergeHeaderParams", () => {
+  const schema = {
+    properties: {
+      tenant_id: { type: "string", "x-mcp-header": "TenantId" },
+      invoice_id: { type: "string" },
+    },
+  };
+
+  it("matching header + body → merged + ok", () => {
+    const result = validateAndMergeHeaderParams(
       schema,
-      { tenant_id: "a" },
-      { tenant_id: "b" },
-      warnFn,
+      { tenant_id: "acme", invoice_id: "inv-1" },
+      { "mcp-param-tenantid": "acme" },
     );
-    assert.deepEqual(result, { tenant_id: "b" });
-    assert.deepEqual(warned, ["header-body-mismatch"]);
+    assert.deepEqual(result, { ok: true, args: { tenant_id: "acme", invoice_id: "inv-1" } });
   });
 
-  it("property without x-mcp-header is NOT overridden by headerParams", () => {
-    const schema = {
-      properties: {
-        user_id: { type: "string" },
-      },
-    };
-    // Even if headerParams has user_id, it should not be injected because x-mcp-header is absent
-    const result = mergeHeaderParams(
+  it("body arg missing, header present → header injected", () => {
+    const result = validateAndMergeHeaderParams(
       schema,
-      { user_id: "original" },
-      { user_id: "from-header" },
+      { invoice_id: "inv-1" },
+      { "mcp-param-tenantid": "acme" },
     );
-    assert.deepEqual(result, { user_id: "original" });
+    assert.deepEqual(result, { ok: true, args: { tenant_id: "acme", invoice_id: "inv-1" } });
   });
 
-  it("property with x-mcp-header not in headerParams → stays as-is from args", () => {
-    const schema = {
-      properties: {
-        tenant_id: { type: "string", "x-mcp-header": true },
-      },
-    };
-    const result = mergeHeaderParams(
+  it("body arg present, header absent → ok: false reason: header-missing", () => {
+    const result = validateAndMergeHeaderParams(
       schema,
-      { tenant_id: "from-args" },
+      { tenant_id: "acme", invoice_id: "inv-1" },
       {},
     );
-    assert.deepEqual(result, { tenant_id: "from-args" });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "header-missing");
+      assert.match(result.detail, /TenantId/);
+    }
+  });
+
+  it("body arg present, header mismatches → ok: false reason: header-mismatch", () => {
+    const result = validateAndMergeHeaderParams(
+      schema,
+      { tenant_id: "acme", invoice_id: "inv-1" },
+      { "mcp-param-tenantid": "evil" },
+    );
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "header-mismatch");
+      assert.match(result.detail, /TenantId/);
+    }
+  });
+
+  it("Base64-encoded header decoded before comparison", () => {
+    const result = validateAndMergeHeaderParams(
+      schema,
+      { tenant_id: "Hello, 世界", invoice_id: "inv-1" },
+      { "mcp-param-tenantid": "=?base64?SGVsbG8sIOS4lueVjA==?=" },
+    );
+    assert.deepEqual(result, { ok: true, args: { tenant_id: "Hello, 世界", invoice_id: "inv-1" } });
+  });
+
+  it("invalid Base64 → ok: false reason: invalid-base64", () => {
+    const result = validateAndMergeHeaderParams(
+      schema,
+      { tenant_id: "x", invoice_id: "inv-1" },
+      { "mcp-param-tenantid": "=?base64?!!!?=" },
+    );
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "invalid-base64");
+    }
+  });
+
+  it("schema has no x-mcp-header properties → trivially ok", () => {
+    const result = validateAndMergeHeaderParams(
+      { properties: { a: { type: "string" } } },
+      { a: "1" },
+      {},
+    );
+    assert.deepEqual(result, { ok: true, args: { a: "1" } });
   });
 });
