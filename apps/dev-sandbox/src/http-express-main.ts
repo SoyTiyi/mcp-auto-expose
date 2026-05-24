@@ -39,8 +39,8 @@ router.get(
 router.get(
   "/users/:id",
   mcpExpose({
-    params: z.object({ id: z.string(), tenant_id: mcpHeader(z.string()) }),
-    description: "Get user by ID (tenant_id carried via Mcp-Param-Tenant-Id)",
+    params: z.object({ id: z.string(), tenant_id: mcpHeader(z.string(), "TenantId") }),
+    description: "Get user by ID (tenant_id carried via Mcp-Param-TenantId)",
   }),
   (req, res) => {
     const { id } = req.params as { id: string };
