@@ -23,7 +23,7 @@ const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
 export function makeHttpCaller(opts: HttpCallerOptions): OnToolCall {
   const { baseUrl, defaultHeaders = {}, timeoutMs = 30_000 } = opts;
 
-  return async (tool, rawArgs): Promise<CallToolResult> => {
+  return async (tool, rawArgs, ctx): Promise<CallToolResult> => {
     const args = (rawArgs ?? {}) as Record<string, unknown>;
     const { url, querystring, body, headers: mcpParamHeaders } = reconstructRequest(tool, args);
 
@@ -37,6 +37,12 @@ export function makeHttpCaller(opts: HttpCallerOptions): OnToolCall {
     if (hasBody) {
       requestHeaders["Content-Type"] = "application/json";
     }
+
+    // SEP-414: propagate W3C Trace Context to the backend
+    const trace = (ctx as { traceContext?: Record<string, string> } | undefined)?.traceContext;
+    if (trace?.traceparent) requestHeaders["Traceparent"] = trace.traceparent;
+    if (trace?.tracestate) requestHeaders["Tracestate"] = trace.tracestate;
+    if (trace?.baggage) requestHeaders["Baggage"] = trace.baggage;
 
     let response: Response;
     try {

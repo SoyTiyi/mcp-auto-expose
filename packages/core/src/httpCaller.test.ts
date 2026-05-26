@@ -186,4 +186,47 @@ describe("makeHttpCaller", () => {
     const req = lastRequest()!;
     assert.equal(req.headers["authorization"], "Bearer token123");
   });
+
+  it("7. SEP-414: traceparent/tracestate/baggage forwarded to backend when ctx.traceContext set", async () => {
+    const caller = makeHttpCaller({ baseUrl });
+    const tool = makeTool({
+      _source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
+    });
+    const ctx = {
+      traceContext: {
+        traceparent: "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+        tracestate: "rojo=00f067aa0ba902b7",
+        baggage: "userId=alice",
+      },
+    };
+    await caller(tool, {}, ctx);
+    const req = lastRequest()!;
+    assert.equal(req.headers["traceparent"], "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+    assert.equal(req.headers["tracestate"], "rojo=00f067aa0ba902b7");
+    assert.equal(req.headers["baggage"], "userId=alice");
+  });
+
+  it("8. SEP-414: no trace headers forwarded when ctx has no traceContext", async () => {
+    const caller = makeHttpCaller({ baseUrl });
+    const tool = makeTool({
+      _source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
+    });
+    await caller(tool, {}, {});
+    const req = lastRequest()!;
+    assert.equal(req.headers["traceparent"], undefined);
+    assert.equal(req.headers["tracestate"], undefined);
+  });
+
+  it("9. SEP-414: only present trace headers are forwarded (partial set)", async () => {
+    const caller = makeHttpCaller({ baseUrl });
+    const tool = makeTool({
+      _source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
+    });
+    const ctx = { traceContext: { traceparent: "00-abc-def-01" } };
+    await caller(tool, {}, ctx);
+    const req = lastRequest()!;
+    assert.equal(req.headers["traceparent"], "00-abc-def-01");
+    assert.equal(req.headers["tracestate"], undefined);
+    assert.equal(req.headers["baggage"], undefined);
+  });
 });

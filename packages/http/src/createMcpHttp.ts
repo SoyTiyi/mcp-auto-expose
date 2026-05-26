@@ -18,6 +18,13 @@ export interface McpHttpContext {
   auth?: unknown;
   mcp: { method: string; name: string };
   headerParams: Record<string, string>;
+  /** SEP-414: W3C Trace Context extracted from incoming HTTP headers. Propagated
+   *  to backend calls by makeHttpCaller as Traceparent/Tracestate/Baggage headers. */
+  traceContext?: {
+    traceparent?: string;
+    tracestate?: string;
+    baggage?: string;
+  };
 }
 
 export type OnToolCallHttp = (
@@ -42,6 +49,12 @@ export interface McpHttpOptions {
   apiBaseUrl?: string;
   apiCallerOptions?: Omit<HttpCallerOptions, "baseUrl">;
   onToolCall?: OnToolCallHttp;
+  /** SEP-2549 CacheableResult. When set, `tools/list` responses include
+   *  `_meta.ttlMs` and `_meta.cacheScope` so clients can cache the tool catalog. */
+  toolsListCache?: {
+    ttlMs: number;
+    cacheScope: "session" | "global";
+  };
 }
 
 export type McpIncomingMessage = IncomingMessage & { auth?: unknown; body?: unknown };
@@ -53,6 +66,24 @@ export interface McpHttpHandle {
 
 function buildEmptyCtx(): McpHttpContext {
   return { headers: {}, mcp: { method: "", name: "" }, headerParams: {} };
+}
+
+function extractTraceContext(
+  headers: Record<string, string | string[] | undefined>,
+): McpHttpContext["traceContext"] {
+  const get = (k: string): string | undefined => {
+    const v = headers[k];
+    return typeof v === "string" ? v : Array.isArray(v) ? v[0] : undefined;
+  };
+  const traceparent = get("traceparent");
+  const tracestate = get("tracestate");
+  const baggage = get("baggage");
+  if (!traceparent && !tracestate && !baggage) return undefined;
+  return {
+    ...(traceparent ? { traceparent } : {}),
+    ...(tracestate ? { tracestate } : {}),
+    ...(baggage ? { baggage } : {}),
+  };
 }
 
 function replyJson(res: ServerResponse, status: number, body: Record<string, unknown>): void {
@@ -116,7 +147,7 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
         baseUrl: options.apiBaseUrl,
         ...options.apiCallerOptions,
       });
-      return (tool, args) => caller(tool, args);
+      return (tool, args, ctx) => caller(tool, args, ctx);
     }
     throw new Error(
       "[mcp-auto-expose/http] createMcpHttp requires either 'apiBaseUrl' or 'onToolCall'.",
@@ -134,13 +165,22 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
   function setupServer(): McpServer {
     const srv = new McpServer({ name, version }, { capabilities: { tools: {} } });
 
-    srv.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: tools.map((t) => ({
-        name: t.name,
-        description: t.description,
-        inputSchema: t.inputSchema,
-      })),
-    }));
+    srv.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      const result: { tools: unknown[]; _meta?: Record<string, unknown> } = {
+        tools: tools.map((t) => ({
+          name: t.name,
+          description: t.description,
+          inputSchema: t.inputSchema,
+        })),
+      };
+      if (options.toolsListCache) {
+        result._meta = {
+          ttlMs: options.toolsListCache.ttlMs,
+          cacheScope: options.toolsListCache.cacheScope,
+        };
+      }
+      return result;
+    });
 
     srv.server.setRequestHandler(CallToolRequestSchema, async (req) => {
       const toolName = req.params.name;
@@ -298,6 +338,9 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
         auth: req.auth,
         mcp: { method: mcpMethod, name: mcpName },
         headerParams,
+        traceContext: extractTraceContext(
+          req.headers as Record<string, string | string[] | undefined>,
+        ),
       };
 
       if (session === "stateful" && !req.headers["mcp-session-id"]) {
@@ -339,6 +382,9 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
         auth: req.auth,
         mcp: { method: "", name: "" },
         headerParams: {},
+        traceContext: extractTraceContext(
+          req.headers as Record<string, string | string[] | undefined>,
+        ),
       };
 
       await httpContextStorage.run(ctx, () =>

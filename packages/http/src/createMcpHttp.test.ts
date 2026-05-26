@@ -5,7 +5,7 @@ import http, { IncomingMessage, ServerResponse } from "node:http";
 import { Socket } from "node:net";
 import type { AddressInfo } from "node:net";
 import { createMcpHttp } from "./createMcpHttp.js";
-import type { McpHttpOptions, McpIncomingMessage } from "./createMcpHttp.js";
+import type { McpHttpContext, McpHttpOptions, McpIncomingMessage } from "./createMcpHttp.js";
 
 const TOOL_SCHEMA = {
   type: "object" as const,
@@ -281,6 +281,51 @@ describe("createMcpHttp — MCP roundtrip", () => {
   });
 });
 
+describe("createMcpHttp — SEP-2549 toolsListCache", () => {
+  it("tools/list without toolsListCache has no _meta", async () => {
+    const opts = makeOpts();
+    await withServer(opts, async (url) => {
+      await initializeMcp(url);
+      const { body } = await postMcp(
+        url,
+        { jsonrpc: "2.0", id: 10, method: "tools/list" },
+        { "Mcp-Method": "tools/list" },
+      );
+      const result = body as { result?: { _meta?: unknown } };
+      assert.equal(result.result?._meta, undefined);
+    });
+  });
+
+  it("tools/list with toolsListCache returns _meta with ttlMs and cacheScope", async () => {
+    const opts = makeOpts({ toolsListCache: { ttlMs: 60000, cacheScope: "global" } });
+    await withServer(opts, async (url) => {
+      await initializeMcp(url);
+      const { body } = await postMcp(
+        url,
+        { jsonrpc: "2.0", id: 11, method: "tools/list" },
+        { "Mcp-Method": "tools/list" },
+      );
+      const result = body as { result?: { _meta?: { ttlMs?: number; cacheScope?: string } } };
+      assert.equal(result.result?._meta?.ttlMs, 60000);
+      assert.equal(result.result?._meta?.cacheScope, "global");
+    });
+  });
+
+  it("tools/list with cacheScope=session returns correct scope", async () => {
+    const opts = makeOpts({ toolsListCache: { ttlMs: 5000, cacheScope: "session" } });
+    await withServer(opts, async (url) => {
+      await initializeMcp(url);
+      const { body } = await postMcp(
+        url,
+        { jsonrpc: "2.0", id: 12, method: "tools/list" },
+        { "Mcp-Method": "tools/list" },
+      );
+      const result = body as { result?: { _meta?: { cacheScope?: string } } };
+      assert.equal(result.result?._meta?.cacheScope, "session");
+    });
+  });
+});
+
 describe("createMcpHttp — fail-fast and apiBaseUrl", () => {
   it("throws when neither onToolCall nor apiBaseUrl provided", () => {
     assert.throws(
@@ -524,5 +569,71 @@ describe("createMcpHttp Mcp-Param-* coherence", () => {
     };
     assert.equal(parsed.error?.code, -32001);
     await handle.close();
+  });
+});
+
+describe("createMcpHttp — SEP-414 trace context propagation", () => {
+  it("traceparent header is captured in ctx.traceContext on tools/call", async () => {
+    const capturedCtx: McpHttpContext[] = [];
+    const opts: McpHttpOptions = {
+      name: "t",
+      version: "0",
+      tools: [TEST_TOOL],
+      onToolCall: async (tool, args, ctx) => {
+        capturedCtx.push(ctx as McpHttpContext);
+        return { content: [{ type: "text", text: "ok" }] };
+      },
+    };
+    await withServer(opts, async (url) => {
+      await initializeMcp(url);
+      await postMcp(
+        url,
+        {
+          jsonrpc: "2.0",
+          id: 20,
+          method: "tools/call",
+          params: { name: "get_item", arguments: { id: "x" } },
+        },
+        {
+          "Mcp-Method": "tools/call",
+          "Mcp-Name": "get_item",
+          traceparent: "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+          tracestate: "rojo=00f067aa0ba902b7",
+        },
+      );
+      const ctx = capturedCtx[capturedCtx.length - 1];
+      assert.ok(ctx, "onToolCall should have been called");
+      assert.equal(ctx.traceContext?.traceparent, "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+      assert.equal(ctx.traceContext?.tracestate, "rojo=00f067aa0ba902b7");
+    });
+  });
+
+  it("no trace headers → ctx.traceContext is undefined", async () => {
+    const capturedCtx: McpHttpContext[] = [];
+    const opts: McpHttpOptions = {
+      name: "t",
+      version: "0",
+      tools: [TEST_TOOL],
+      onToolCall: async (tool, args, ctx) => {
+        capturedCtx.push(ctx as McpHttpContext);
+        return { content: [{ type: "text", text: "ok" }] };
+      },
+    };
+    await withServer(opts, async (url) => {
+      await initializeMcp(url);
+      await postMcp(
+        url,
+        {
+          jsonrpc: "2.0",
+          id: 21,
+          method: "tools/call",
+          params: { name: "get_item", arguments: { id: "y" } },
+        },
+        { "Mcp-Method": "tools/call", "Mcp-Name": "get_item" },
+      );
+      const ctx = capturedCtx[capturedCtx.length - 1];
+      assert.ok(ctx);
+      assert.equal(ctx.traceContext, undefined);
+    });
   });
 });
