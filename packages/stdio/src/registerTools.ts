@@ -3,10 +3,10 @@ import {
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { MCPTool } from "@mcp-auto-expose/core";
-import type { Server } from "@modelcontextprotocol/sdk/server";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export interface RegisterToolsOptions {
-  server: Server;
+  server: McpServer;
   tools: MCPTool[];
   onToolCall: (
     tool: MCPTool,
@@ -15,7 +15,7 @@ export interface RegisterToolsOptions {
 }
 
 export function registerTools({ server, tools, onToolCall }: RegisterToolsOptions): void {
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  server.server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: tools.map((t) => ({
       name: t.name,
       description: t.description,
@@ -23,7 +23,7 @@ export function registerTools({ server, tools, onToolCall }: RegisterToolsOption
     })),
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (req) => {
+  server.server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const name = req.params.name;
     const tool = tools.find((t) => t.name === name);
 

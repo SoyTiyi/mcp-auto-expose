@@ -19,7 +19,7 @@
  */
 
 import express, { Router } from "express";
-import { z } from "zod/v3";
+import { z } from "zod";
 import { autoExpose, mcpExpose, mcpHeader } from "@mcp-auto-expose/express";
 import { mountMcpExpress } from "@mcp-auto-expose/http/express";
 

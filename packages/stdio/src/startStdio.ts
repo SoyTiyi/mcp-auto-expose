@@ -1,4 +1,4 @@
-import { Server } from "@modelcontextprotocol/sdk/server";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { MCPTool, HttpCallerOptions } from "@mcp-auto-expose/core";
 import { makeHttpCaller } from "@mcp-auto-expose/core";
@@ -23,7 +23,7 @@ export interface StartStdioHandle {
 }
 
 interface Deps {
-  server?: Server;
+  server?: McpServer;
   transport?: StdioServerTransport;
 }
 
@@ -49,7 +49,7 @@ export async function startStdio(
 
   const server =
     _deps?.server ??
-    new Server(
+    new McpServer(
       { name: options.name, version: options.version },
       { capabilities: { tools: {} } },
     );

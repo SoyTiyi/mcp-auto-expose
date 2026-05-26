@@ -20,11 +20,10 @@
   },
   "peerDependencies": {
     "express": "^4 || ^5",
-    "zod": "^3 || ^4"
+    "zod": "^4"
   },
   "dependencies": {
-    "@mcp-auto-expose/core": "workspace:*",
-    "zod-to-json-schema": "^3.25.2"
+    "@mcp-auto-expose/core": "workspace:*"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

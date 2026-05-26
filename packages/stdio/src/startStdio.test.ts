@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { restoreStdoutGuard, isStdoutGuardInstalled } from "./stdoutGuard.js";
 import { startStdio } from "./startStdio.js";
 import type { MCPTool } from "@mcp-auto-expose/core";
-import type { Server } from "@modelcontextprotocol/sdk/server";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 const noop = async () => ({ content: [{ type: "text" as const, text: "noop" }] });
@@ -17,13 +17,14 @@ const sampleTools: MCPTool[] = [
   },
 ];
 
-// Minimal stub that satisfies the Server/Transport shapes used inside startStdio
-function makeServerStub(onClose?: () => void): Server {
+// Minimal stub that satisfies McpServer shape used inside startStdio.
+// server.server is the escape hatch used by registerTools.
+function makeServerStub(onClose?: () => void): McpServer {
   return {
-    setRequestHandler: () => {},
+    server: { setRequestHandler: () => {} },
     connect: async () => {},
     close: async () => { onClose?.(); },
-  } as unknown as Server;
+  } as unknown as McpServer;
 }
 
 function makeTransportStub(): StdioServerTransport {
@@ -70,10 +71,10 @@ describe("startStdio", () => {
   it("calls server.connect with the transport", async () => {
     let connectedTransport: unknown = null;
     const server = {
-      setRequestHandler: () => {},
+      server: { setRequestHandler: () => {} },
       connect: async (t: unknown) => { connectedTransport = t; },
       close: async () => {},
-    } as unknown as Server;
+    } as unknown as McpServer;
     const transport = makeTransportStub();
     await startStdio(
       { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false, onToolCall: noop },

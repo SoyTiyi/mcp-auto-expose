@@ -1,3 +1,4 @@
+import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import http, { IncomingMessage, ServerResponse } from "node:http";
@@ -118,7 +119,7 @@ async function initializeMcp(baseUrl: string): Promise<void> {
       id: 1,
       method: "initialize",
       params: {
-        protocolVersion: "2025-03-26",
+        protocolVersion: LATEST_PROTOCOL_VERSION,
         capabilities: {},
         clientInfo: { name: "test", version: "0" },
       },
@@ -149,7 +150,7 @@ describe("createMcpHttp — origin guard", () => {
     await withServer(opts, async (url) => {
       const { status } = await postMcp(
         url,
-        { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "t", version: "0" } } },
+        { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: LATEST_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "t", version: "0" } } },
         { "Mcp-Method": "initialize" },
       );
       assert.notEqual(status, 403);

@@ -3,14 +3,17 @@ import assert from "node:assert/strict";
 import type { MCPTool } from "@mcp-auto-expose/core";
 import { registerTools } from "./registerTools.js";
 
-// Minimal stub that records setRequestHandler calls
+// Minimal stub that records setRequestHandler calls.
+// Shaped as { server: { setRequestHandler, handlers } } to match McpServer's escape hatch.
 function makeServerStub() {
   const handlers: { schema: unknown; handler: (...a: unknown[]) => unknown }[] = [];
   return {
-    setRequestHandler(schema: unknown, handler: (...a: unknown[]) => unknown) {
-      handlers.push({ schema, handler });
+    server: {
+      setRequestHandler(schema: unknown, handler: (...a: unknown[]) => unknown) {
+        handlers.push({ schema, handler });
+      },
+      handlers,
     },
-    handlers,
   };
 }
 
@@ -39,13 +42,13 @@ describe("registerTools", () => {
   it("registers exactly 2 request handlers (list + call) regardless of tool count", () => {
     const server = makeServerStub();
     registerTools({ server: server as never, tools: sampleTools, onToolCall: noop });
-    assert.equal(server.handlers.length, 2, "must register ListTools and CallTool handlers");
+    assert.equal(server.server.handlers.length, 2, "must register ListTools and CallTool handlers");
   });
 
   it("tools/list handler returns all tools with correct name and description", async () => {
     const server = makeServerStub();
     registerTools({ server: server as never, tools: sampleTools, onToolCall: noop });
-    const listHandler = server.handlers[0]?.handler;
+    const listHandler = server.server.handlers[0]?.handler;
     assert.ok(listHandler, "ListTools handler must be registered");
     const result = await listHandler({});
     assert.ok(typeof result === "object" && result !== null);
@@ -59,7 +62,7 @@ describe("registerTools", () => {
   it("tools/list handler returns correct inputSchema for each tool", async () => {
     const server = makeServerStub();
     registerTools({ server: server as never, tools: sampleTools, onToolCall: noop });
-    const listHandler = server.handlers[0]?.handler;
+    const listHandler = server.server.handlers[0]?.handler;
     assert.ok(listHandler);
     const result = await listHandler({}) as {
       tools: { inputSchema: Record<string, unknown> }[];
@@ -80,7 +83,7 @@ describe("registerTools", () => {
       tools: sampleTools,
       onToolCall: async () => customResult,
     });
-    const callHandler = server.handlers[1]?.handler;
+    const callHandler = server.server.handlers[1]?.handler;
     assert.ok(callHandler);
     const result = await callHandler({ params: { name: "list_users", arguments: {} } });
     assert.deepEqual(result, customResult);
@@ -89,7 +92,7 @@ describe("registerTools", () => {
   it("tools/call handler returns error content for unknown tool", async () => {
     const server = makeServerStub();
     registerTools({ server: server as never, tools: sampleTools, onToolCall: noop });
-    const callHandler = server.handlers[1]?.handler;
+    const callHandler = server.server.handlers[1]?.handler;
     assert.ok(callHandler);
     const result = await callHandler({ params: { name: "nonexistent_tool", arguments: {} } }) as {
       content: { type: string; text: string }[];
@@ -110,7 +113,7 @@ describe("registerTools", () => {
         return { content: [{ type: "text" as const, text: "ok" }] };
       },
     });
-    const callHandler = server.handlers[1]?.handler;
+    const callHandler = server.server.handlers[1]?.handler;
     assert.ok(callHandler);
     await callHandler({ params: { name: "create_users", arguments: { name: "Ana" } } });
     assert.ok(received, "onToolCall must have been called");
@@ -121,6 +124,6 @@ describe("registerTools", () => {
   it("registers handlers with empty tools list without throwing", () => {
     const server = makeServerStub();
     assert.doesNotThrow(() => registerTools({ server: server as never, tools: [], onToolCall: noop }));
-    assert.equal(server.handlers.length, 2);
+    assert.equal(server.server.handlers.length, 2);
   });
 });

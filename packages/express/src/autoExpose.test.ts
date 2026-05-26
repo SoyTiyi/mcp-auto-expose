@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import express, { type Request, type Response } from "express";
-import { z } from "zod/v3";
+import { z } from "zod";
 import { autoExpose } from "./autoExpose.js";
 import { mcpExpose } from "./mcpExpose.js";
 

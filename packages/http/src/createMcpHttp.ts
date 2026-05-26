@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { MCPTool, HttpCallerOptions } from "@mcp-auto-expose/core";
@@ -131,10 +131,10 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
   // Stateless mode calls this per-request (SDK forbids reconnecting one Server to a
   // new transport while a previous transport is still attached).
   // Stateful mode calls this once and reuses the same server across sessions.
-  function setupServer(): Server {
-    const srv = new Server({ name, version }, { capabilities: { tools: {} } });
+  function setupServer(): McpServer {
+    const srv = new McpServer({ name, version }, { capabilities: { tools: {} } });
 
-    srv.setRequestHandler(ListToolsRequestSchema, async () => ({
+    srv.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: tools.map((t) => ({
         name: t.name,
         description: t.description,
@@ -142,7 +142,7 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
       })),
     }));
 
-    srv.setRequestHandler(CallToolRequestSchema, async (req) => {
+    srv.server.setRequestHandler(CallToolRequestSchema, async (req) => {
       const toolName = req.params.name;
       const tool = tools.find((t) => t.name === toolName);
 

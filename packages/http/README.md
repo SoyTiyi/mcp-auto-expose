@@ -174,7 +174,7 @@ The `mcpHeader()` wrapper stamps `"x-mcp-header": true` on the generated JSON Sc
 curl -sN -X POST http://127.0.0.1:3000/mcp \
   -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
   -H "Mcp-Method: initialize" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}'
 
 # tools/list
 curl -sN -X POST http://127.0.0.1:3000/mcp \

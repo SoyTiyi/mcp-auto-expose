@@ -15,7 +15,7 @@ El proceso queda escuchando en `stdin`. Cualquier cliente MCP puede conectarse l
 
 ```sh
 printf '%s\n%s\n' \
-  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
 | pnpm --filter dev-sandbox exec node --import tsx src/main.ts \
   2>sandbox.stderr.log

@@ -1,32 +1,34 @@
-import { zodToJsonSchema } from "zod-to-json-schema";
-import type { ZodTypeAny } from "zod/v3";
+import { z } from "zod";
 import type { RouteSchema } from "@mcp-auto-expose/core";
 import { warn } from "./warn.js";
 import { isMcpHeader, getMcpHeaderName } from "./mcpHeader.js";
 
-// McpExposeSpec is defined here; mcpExpose.ts (Task 3) will import it from here.
+// McpExposeSpec is defined here; mcpExpose.ts re-exports it for consumers.
 export interface McpExposeSpec {
-  body?: ZodTypeAny;
-  query?: ZodTypeAny; // Express idiom → maps to RouteSchema.querystring
-  params?: ZodTypeAny;
+  body?: z.ZodType;
+  query?: z.ZodType; // Express idiom → maps to RouteSchema.querystring
+  params?: z.ZodType;
   description?: string;
   summary?: string;
   tags?: string[];
   hide?: boolean;
 }
 
-const conversionCache = new WeakMap<ZodTypeAny, Record<string, unknown>>();
+const conversionCache = new WeakMap<z.ZodType, Record<string, unknown>>();
 
-export function convertCached(schema: ZodTypeAny): Record<string, unknown> {
+export function convertCached(schema: z.ZodType): Record<string, unknown> {
   const cached = conversionCache.get(schema);
   if (cached) return cached;
 
   let out: Record<string, unknown>;
   try {
-    out = zodToJsonSchema(schema, {
-      target: "jsonSchema7",
-      $refStrategy: "none",
-    }) as Record<string, unknown>;
+    out = { ...(z.toJSONSchema(schema, {
+      target: "draft-2020-12",
+      reused: "inline",
+      unrepresentable: "any",
+    }) as Record<string, unknown>) };
+    // Remove Standard Schema marker — not part of the JSON Schema output
+    delete out["~standard"];
   } catch (e) {
     warn("zod-convert-failed", { message: String(e) });
     out = {};
@@ -42,11 +44,10 @@ export function convertCached(schema: ZodTypeAny): Record<string, unknown> {
   // Per SEP-2243 Final: value is a non-empty ASCII string used verbatim as the
   // Mcp-Param-{name} segment. Falls back to PascalCase of the property key.
   try {
-    const def = (schema as unknown as { _def?: { typeName?: string; shape?: () => Record<string, ZodTypeAny> } })._def;
-    if (def?.typeName === "ZodObject" && typeof def.shape === "function") {
+    if (schema instanceof z.ZodObject) {
       const properties = out["properties"] as Record<string, Record<string, unknown>> | undefined;
       if (properties) {
-        for (const [propName, propSchema] of Object.entries(def.shape())) {
+        for (const [propName, propSchema] of Object.entries(schema.shape as Record<string, z.ZodType>)) {
           if (!isMcpHeader(propSchema)) continue;
           if (!properties[propName]) continue;
           const explicit = getMcpHeaderName(propSchema);

@@ -1,3 +1,4 @@
+import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import Fastify from "fastify";
@@ -68,7 +69,7 @@ async function initializeMcp(fastify: ReturnType<typeof Fastify>): Promise<void>
     fastify,
     {
       jsonrpc: "2.0", id: 1, method: "initialize",
-      params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "test", version: "0" } },
+      params: { protocolVersion: LATEST_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "test", version: "0" } },
     },
     { "Mcp-Method": "initialize" },
   );
@@ -84,7 +85,7 @@ describe("mcpFastifyPlugin — routing", () => {
       fastify,
       {
         jsonrpc: "2.0", id: 1, method: "initialize",
-        params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "t", version: "0" } },
+        params: { protocolVersion: LATEST_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "t", version: "0" } },
       },
       { "Mcp-Method": "initialize" },
     );

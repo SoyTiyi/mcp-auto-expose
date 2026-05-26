@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { z } from "zod/v3";
+import { z } from "zod";
 import { mcpHeader, getMcpHeaderName, isMcpHeader } from "./mcpHeader.js";
 
 describe("mcpHeader", () => {

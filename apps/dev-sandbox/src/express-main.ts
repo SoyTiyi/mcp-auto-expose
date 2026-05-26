@@ -1,5 +1,5 @@
 import express, { Router } from "express";
-import { z } from "zod/v3";
+import { z } from "zod";
 import { autoExpose, mcpExpose } from "@mcp-auto-expose/express";
 import { startStdio } from "@mcp-auto-expose/stdio";
 

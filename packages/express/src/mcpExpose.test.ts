@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { z } from "zod/v3";
+import { z } from "zod";
 import { mcpExpose, MCP_EXPOSE_SYMBOL } from "./mcpExpose.js";
 import type { RouteSchema } from "@mcp-auto-expose/core";
 

@@ -1,3 +1,4 @@
+import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
@@ -97,7 +98,7 @@ async function initializeMcp(baseUrl: string): Promise<void> {
     baseUrl,
     {
       jsonrpc: "2.0", id: 1, method: "initialize",
-      params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "test", version: "0" } },
+      params: { protocolVersion: LATEST_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "test", version: "0" } },
     },
     { "Mcp-Method": "initialize" },
   );
@@ -111,7 +112,7 @@ describe("mountMcpExpress — routing", () => {
         url,
         {
           jsonrpc: "2.0", id: 1, method: "initialize",
-          params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "t", version: "0" } },
+          params: { protocolVersion: LATEST_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "t", version: "0" } },
         },
         { "Mcp-Method": "initialize" },
       );
