@@ -8,10 +8,8 @@ interface User {
   email: string;
 }
 
-const db: Map<string, User> = new Map([
-  ["u1", { id: "u1", name: "Ana", email: "ana@example.com" }],
-]);
-let nextId = 2;
+const db: Map<string, User> = new Map();
+let nextId = 1;
 
 const app = Fastify({ logger: { stream: process.stderr } });
 await app.register(autoExpose);
