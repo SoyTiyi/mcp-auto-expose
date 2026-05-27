@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "node --import tsx src/main.ts",
     "dev:express": "node --import tsx src/express-main.ts",
+    "dev:http-express": "node --import tsx src/http-express-main.ts",
+    "dev:http-fastify": "node --import tsx src/http-fastify-main.ts",
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0"
   },
