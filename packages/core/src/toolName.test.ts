@@ -24,10 +24,7 @@ describe("generateToolName - CRUD table", () => {
   });
 
   it("PUT /api/users/:id → replace_users_by_id", () => {
-    assert.equal(
-      generateToolName("PUT", "/api/users/:id"),
-      "replace_users_by_id",
-    );
+    assert.equal(generateToolName("PUT", "/api/users/:id"), "replace_users_by_id");
   });
 
   it("PUT /api/users (no params) → replace_users", () => {
@@ -35,10 +32,7 @@ describe("generateToolName - CRUD table", () => {
   });
 
   it("PATCH /api/users/:id → update_users_by_id", () => {
-    assert.equal(
-      generateToolName("PATCH", "/api/users/:id"),
-      "update_users_by_id",
-    );
+    assert.equal(generateToolName("PATCH", "/api/users/:id"), "update_users_by_id");
   });
 
   it("PATCH /api/users (no params) → update_users", () => {
@@ -46,10 +40,7 @@ describe("generateToolName - CRUD table", () => {
   });
 
   it("DELETE /api/users/:id → delete_users_by_id", () => {
-    assert.equal(
-      generateToolName("DELETE", "/api/users/:id"),
-      "delete_users_by_id",
-    );
+    assert.equal(generateToolName("DELETE", "/api/users/:id"), "delete_users_by_id");
   });
 
   it("DELETE /api/users (no params) → delete_users", () => {
@@ -67,10 +58,7 @@ describe("generateToolName - CRUD table", () => {
 
 describe("generateToolName - curly brace params", () => {
   it("GET /api/users/{id} → get_users_by_id", () => {
-    assert.equal(
-      generateToolName("GET", "/api/users/{id}"),
-      "get_users_by_id",
-    );
+    assert.equal(generateToolName("GET", "/api/users/{id}"), "get_users_by_id");
   });
 });
 
@@ -86,16 +74,9 @@ describe("generateToolName - truncation", () => {
       "/api/very-long-resource-name-that-will-exceed-the-limit/:parameterNameThatIsAlsoLong";
     const result = generateToolName(method, url);
 
-    assert.equal(
-      result.length,
-      64,
-      `Expected length 64, got ${result.length}: "${result}"`,
-    );
+    assert.equal(result.length, 64, `Expected length 64, got ${result.length}: "${result}"`);
 
-    const expectedHash = createHash("sha256")
-      .update(`${method}:${url}`)
-      .digest("hex")
-      .slice(0, 6);
+    const expectedHash = createHash("sha256").update(`${method}:${url}`).digest("hex").slice(0, 6);
 
     assert.ok(
       result.endsWith(`_h${expectedHash}`),

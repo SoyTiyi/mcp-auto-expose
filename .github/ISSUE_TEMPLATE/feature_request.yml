@@ -1,0 +1,37 @@
+name: 💡 Feature Request
+description: Proponer una nueva funcionalidad o mejora
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: ¿Qué problema resuelve esta feature?
+      description: "Describe el problema desde la perspectiva del usuario, no la solución"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solución propuesta
+      description: "¿Cómo debería funcionar? ¿Qué API tendría?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+      description: "¿Qué otras soluciones exploraste? ¿Por qué las descartaste?"
+
+  - type: dropdown
+    id: framework
+    attributes:
+      label: Framework afectado
+      multiple: true
+      options:
+        - Fastify
+        - Express
+        - Core (agnóstico)
+        - stdio transport
+        - HTTP transport

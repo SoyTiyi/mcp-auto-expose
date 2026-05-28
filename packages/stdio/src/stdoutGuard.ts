@@ -1,10 +1,23 @@
 import { format } from "node:util";
 
 const PATCHED_METHODS = [
-  "log", "info", "warn", "error", "debug", "trace",
-  "dir", "group", "groupCollapsed", "groupEnd",
-  "table", "count", "countReset",
-  "time", "timeLog", "timeEnd", "assert",
+  "log",
+  "info",
+  "warn",
+  "error",
+  "debug",
+  "trace",
+  "dir",
+  "group",
+  "groupCollapsed",
+  "groupEnd",
+  "table",
+  "count",
+  "countReset",
+  "time",
+  "timeLog",
+  "timeEnd",
+  "assert",
 ] as const;
 
 type PatchedMethod = (typeof PATCHED_METHODS)[number];

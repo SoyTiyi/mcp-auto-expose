@@ -18,12 +18,16 @@ const app = Fastify();
 await app.register(autoExpose);
 
 app.get("/api/users", { schema: { description: "List users" } }, async () => []);
-app.get("/api/users/:id", {
-  schema: {
-    description: "Get user by ID",
-    params: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+app.get(
+  "/api/users/:id",
+  {
+    schema: {
+      description: "Get user by ID",
+      params: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+    },
   },
-}, async () => ({}));
+  async () => ({}),
+);
 
 await app.ready();
 
@@ -34,8 +38,8 @@ const tools = app.mcpAutoExpose.tools();
 
 ## Options
 
-| Option | Type | Default | Description |
-|---|---|---|---|
+| Option         | Type      | Default | Description                                                              |
+| -------------- | --------- | ------- | ------------------------------------------------------------------------ |
 | `strictSchema` | `boolean` | `false` | If `true`, routes without body/querystring/params schema are not exposed |
 
 ## Excluding routes

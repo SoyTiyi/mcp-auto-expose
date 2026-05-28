@@ -4,11 +4,7 @@ import { MCP_EXPOSE_SYMBOL } from "./mcpExpose.js";
 import { walkRoutes } from "./walkRoutes.js";
 
 // Mock a terminal route layer
-function routeLayer(
-  methods: string | string[],
-  path: string | string[],
-  handlers: unknown[] = [],
-) {
+function routeLayer(methods: string | string[], path: string | string[], handlers: unknown[] = []) {
   const methodMap: Record<string, boolean> = {};
   const ms = Array.isArray(methods) ? methods : [methods];
   for (const m of ms) methodMap[m.toLowerCase()] = true;
@@ -58,9 +54,7 @@ describe("walkRoutes — test 1: simple GET /api/users", () => {
 
 describe("walkRoutes — test 2: Express 5 sub-router", () => {
   it("routerLayerV5('/api', [routeLayer('get', '/users')]) → url /api/users", () => {
-    const app = mockApp([
-      routerLayerV5("/api", [routeLayer("get", "/users")]),
-    ]);
+    const app = mockApp([routerLayerV5("/api", [routeLayer("get", "/users")])]);
     const result = walkRoutes(app, { strictSchema: false });
     assert.equal(result.length, 1);
     assert.equal(result[0]?.url, "/api/users");
@@ -72,9 +66,7 @@ describe("walkRoutes — test 3: Express 4 sub-router with regexp", () => {
   it("regexp source for /api mount → url /api/users", () => {
     // This is the canonical Express 4 regexp source for app.use("/api", router)
     const regexpSource = String.raw`^\/api\/?(?=\/|$)`;
-    const app = mockApp([
-      routerLayerV4(regexpSource, false, [routeLayer("get", "/users")]),
-    ]);
+    const app = mockApp([routerLayerV4(regexpSource, false, [routeLayer("get", "/users")])]);
     const result = walkRoutes(app, { strictSchema: false });
     assert.equal(result.length, 1);
     assert.equal(result[0]?.url, "/api/users");
@@ -83,9 +75,7 @@ describe("walkRoutes — test 3: Express 4 sub-router with regexp", () => {
 
 describe("walkRoutes — test 4: _all filtered", () => {
   it("methods: { get: true, _all: true } → only GET emitted", () => {
-    const app = mockApp([
-      routeLayer(["get", "_all"], "/users"),
-    ]);
+    const app = mockApp([routeLayer(["get", "_all"], "/users")]);
     const result = walkRoutes(app, { strictSchema: false });
     assert.equal(result.length, 1);
     assert.equal(result[0]?.method, "GET");
@@ -102,10 +92,7 @@ describe("walkRoutes — test 5: unknown method", () => {
 
 describe("walkRoutes — test 6: duplicate route", () => {
   it("two GET /api/users layers → 1 descriptor in output", () => {
-    const app = mockApp([
-      routeLayer("get", "/api/users"),
-      routeLayer("get", "/api/users"),
-    ]);
+    const app = mockApp([routeLayer("get", "/api/users"), routeLayer("get", "/api/users")]);
     const result = walkRoutes(app, { strictSchema: false });
     assert.equal(result.length, 1);
   });
@@ -187,6 +174,25 @@ describe("walkRoutes — test 14: basePath prefix", () => {
     const result = walkRoutes(app, { strictSchema: false, basePath: "/prefix" });
     assert.equal(result.length, 1);
     assert.equal(result[0]?.url, "/prefix/users");
+  });
+});
+
+describe("walkRoutes — test 16: HEAD route excluded by default", () => {
+  it("HEAD /users with no includeHead option → 0 descriptors", () => {
+    const app = mockApp([routeLayer("head", "/users")]);
+    const result = walkRoutes(app, { strictSchema: false });
+    assert.equal(result.length, 0);
+  });
+});
+
+describe("walkRoutes — test 17: HEAD route included when includeHead:true", () => {
+  it("HEAD /users with includeHead:true → 1 descriptor with method HEAD", () => {
+    const app = mockApp([routeLayer("head", "/users")]);
+    const result = walkRoutes(app, { strictSchema: false, includeHead: true });
+    assert.equal(result.length, 1);
+    assert.equal(result[0]?.method, "HEAD");
+    assert.equal(result[0]?.url, "/users");
+    assert.equal(result[0]?.framework, "express");
   });
 });
 

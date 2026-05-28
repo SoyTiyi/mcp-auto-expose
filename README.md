@@ -33,7 +33,11 @@ app.get("/api/users", async () => [{ id: "u1", name: "Ana" }]);
 
 app.post(
   "/api/users",
-  { schema: { body: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } } },
+  {
+    schema: {
+      body: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+    },
+  },
   async (req) => ({ id: "u2", ...(req.body as object) }),
 );
 
@@ -78,34 +82,29 @@ app.listen(3000, "127.0.0.1");
 
 ---
 
-## Documentación
-
-- [Como funciona](docs/como-funciona.md) — guía arquitectónica completa
-- [Análisis de desajustes](docs/analisis-desajustes.md) — estado de la implementación vs. spec MCP
-
 ---
 
 ## Paquetes del monorepo
 
-| Paquete | Descripción |
-|---------|-------------|
-| `@mcp-auto-expose/core` | Motor de auto-descubrimiento: `generateToolName`, `flattenSchema`, `makeHttpCaller` |
-| `@mcp-auto-expose/fastify` | Plugin Fastify con `onRoute` hook |
-| `@mcp-auto-expose/express` | Walker recursivo `app._router.stack` + decoradores `mcpExpose` / `mcpHeader` |
-| `@mcp-auto-expose/stdio` | Transporte stdio con `stdoutGuard` (redirige `console.*` → stderr) |
-| `@mcp-auto-expose/http` | Streamable HTTP (POST+SSE); binders para Express y Fastify |
+| Paquete                    | Descripción                                                                         |
+| -------------------------- | ----------------------------------------------------------------------------------- |
+| `@mcp-auto-expose/core`    | Motor de auto-descubrimiento: `generateToolName`, `flattenSchema`, `makeHttpCaller` |
+| `@mcp-auto-expose/fastify` | Plugin Fastify con `onRoute` hook                                                   |
+| `@mcp-auto-expose/express` | Walker recursivo `app._router.stack` + decoradores `mcpExpose` / `mcpHeader`        |
+| `@mcp-auto-expose/stdio`   | Transporte stdio con `stdoutGuard` (redirige `console.*` → stderr)                  |
+| `@mcp-auto-expose/http`    | Streamable HTTP (POST+SSE); binders para Express y Fastify                          |
 
 ---
 
 ## Estado
 
-| Característica | Estado |
-|---------------|--------|
-| Protocolo MCP | `2025-11-25` |
-| SEP-2243 headers obligatorios | Implementado (default on) |
+| Característica                               | Estado                                     |
+| -------------------------------------------- | ------------------------------------------ |
+| Protocolo MCP                                | `2025-11-25`                               |
+| SEP-2243 headers obligatorios                | Implementado (default on)                  |
 | SEP-2549 cache hints (`ttlMs`, `cacheScope`) | Implementado (opt-in via `toolsListCache`) |
-| SEP-414 W3C Trace Context → backend | Implementado |
-| Invocación real de ruta backend | Implementado (`makeHttpCaller`) |
+| SEP-414 W3C Trace Context → backend          | Implementado                               |
+| Invocación real de ruta backend              | Implementado (`makeHttpCaller`)            |
 
 ---
 
@@ -122,6 +121,16 @@ pnpm check-types                 # type-check con tsc
 node --import tsx apps/dev-sandbox/src/http-express-main.ts &
 node --import tsx apps/dev-sandbox/src/http-client-smoke.ts
 ```
+
+---
+
+## Patrocinadores
+
+¿Tu empresa depende de `mcp-auto-expose`? Considera patrocinar el proyecto
+para garantizar su mantenimiento y desarrollo continuo.
+
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-❤-ea4aaa?logo=github)](https://github.com/sponsors/SoyTiyi)
+[![Polar.sh](https://img.shields.io/badge/Polar.sh-Sponsor-blue?logo=polar)](https://polar.sh/mcp-auto-expose)
 
 ---
 

@@ -1,7 +1,7 @@
 {
   "name": "@mcp-auto-expose/http",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "publishConfig": { "access": "public" },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -43,12 +43,10 @@
     "@repo/typescript-config": "workspace:*",
     "@types/express": "^5.0.0",
     "@types/node": "^22.15.3",
-    "@types/supertest": "^6.0.0",
     "eslint": "^9.39.1",
     "express": "^5.0.0",
     "fastify": "^5.0.0",
     "fastify-plugin": "^5.0.0",
-    "supertest": "^7.0.0",
     "tsx": "^4.19.2",
     "typescript": "5.9.2"
   }

@@ -37,4 +37,6 @@ yarn-error.log*
 .DS_Store
 *.pem
 
-docs/*
+.private/
+
+WORLDCLASS_ROADMAP.md

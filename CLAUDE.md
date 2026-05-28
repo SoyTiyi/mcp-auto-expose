@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project rules (SDD)
 
-- **Fuente de verdad absoluta:** `docs/principal-document.txt`. Consultar SIEMPRE antes de implementar nuevas fases. Cualquier decisión de diseño que contradiga este documento debe rechazarse.
+- **Fuente de verdad absoluta:** `.private/documentation.txt`. Consultar SIEMPRE antes de implementar nuevas fases. Cualquier decisión de diseño que contradiga este documento debe rechazarse.
 - **Spec-First:** cada fase se documenta en `specs/faseN-<nombre>.md` y se aprueba humanamente antes de escribir código.
 - **Spec-Anchored / Spec-as-Source:** los specs permanecen activos en el repo; los cambios de requisitos se hacen primero en el spec.
 - **Logs:** todo log/diagnóstico del runtime de la librería debe ir a `stderr` (preparación para transporte stdio MCP). `stdout` queda reservado al protocolo JSON-RPC.

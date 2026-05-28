@@ -10,6 +10,7 @@
 Construir `@mcp-auto-expose/express` (`packages/express`): motor reflectivo que itera recursivamente `app.router` (v5) / `app._router` (v4) tras el registro de rutas, lee schemas Zod inyectados vía `mcpExpose(spec)` middleware, los convierte a JSON Schema Draft 7, y produce `MCPTool[]` con la **misma forma exacta** que el adaptador Fastify para que el servidor MCP de Fase 2 los consuma sin cambios.
 
 **Fuera de alcance:**
+
 - Dispatch real de `tools/call` a handlers Express (requiere extender `_source` en core; fase posterior).
 - Streamable HTTP, SEP-2243, SEP-2549, SEP-414 (Fase 4 nueva).
 - Validación HTTP en runtime vía `mcpExpose` (posible extensión futura con flag `validate:true`, fuera de MVP).
@@ -111,23 +112,27 @@ app.use(express.json());
 
 const router = express.Router();
 
-router.get("/users",
-  mcpExpose({ description: "Listar usuarios" }),
-  async (_req, res) => res.json([]));
+router.get("/users", mcpExpose({ description: "Listar usuarios" }), async (_req, res) =>
+  res.json([]),
+);
 
-router.get("/users/:id",
+router.get(
+  "/users/:id",
   mcpExpose({
     params: z.object({ id: z.string() }),
     description: "Obtener usuario por id",
   }),
-  async (_req, res) => res.json({}));
+  async (_req, res) => res.json({}),
+);
 
-router.post("/users",
+router.post(
+  "/users",
   mcpExpose({
     body: z.object({ name: z.string(), email: z.string() }),
     description: "Crear usuario",
   }),
-  async (_req, res) => res.status(201).json({}));
+  async (_req, res) => res.status(201).json({}),
+);
 
 app.use("/api", router);
 
@@ -162,8 +167,8 @@ export interface McpExposeSpec {
 }
 
 export function mcpExpose(spec: McpExposeSpec): RequestHandler {
-  const routeSchema = specToRouteSchema(spec);         // conversión en registration time
-  const middleware: RequestHandler = (_req, _res, next) => next();  // no-op en runtime
+  const routeSchema = specToRouteSchema(spec); // conversión en registration time
+  const middleware: RequestHandler = (_req, _res, next) => next(); // no-op en runtime
   (middleware as unknown as Record<symbol, RouteSchema>)[MCP_EXPOSE_SYMBOL] = routeSchema;
   return middleware;
 }
@@ -198,8 +203,8 @@ function convertCached(schema: z.ZodTypeAny): Record<string, unknown> {
   let out: Record<string, unknown>;
   try {
     out = zodToJsonSchema(schema, {
-      target: "jsonSchema7",    // MCP Tool.inputSchema requiere Draft 7
-      $refStrategy: "none",     // core.flattenSchema dropea $ref; inlinear evita pérdida
+      target: "jsonSchema7", // MCP Tool.inputSchema requiere Draft 7
+      $refStrategy: "none", // core.flattenSchema dropea $ref; inlinear evita pérdida
       // NO pasar name: dispara wrapper $ref/#/definitions que sería droppeado
     }) as Record<string, unknown>;
   } catch (e) {
@@ -217,34 +222,34 @@ function convertCached(schema: z.ZodTypeAny): Record<string, unknown> {
 
 export function specToRouteSchema(spec: McpExposeSpec): RouteSchema {
   return {
-    body:        spec.body   ? convertCached(spec.body)   : undefined,
-    querystring: spec.query  ? convertCached(spec.query)  : undefined, // rename query→querystring
-    params:      spec.params ? convertCached(spec.params) : undefined,
+    body: spec.body ? convertCached(spec.body) : undefined,
+    querystring: spec.query ? convertCached(spec.query) : undefined, // rename query→querystring
+    params: spec.params ? convertCached(spec.params) : undefined,
     description: spec.description,
-    summary:     spec.summary,
-    tags:        spec.tags ? [...spec.tags] : undefined,               // shallow copy
-    hide:        spec.hide,
+    summary: spec.summary,
+    tags: spec.tags ? [...spec.tags] : undefined, // shallow copy
+    hide: spec.hide,
   };
 }
 ```
 
 **Justificación de las opciones de conversión:**
 
-| Opción | Valor | Por qué |
-|---|---|---|
-| `target` | `"jsonSchema7"` | Clientes MCP esperan Draft 7; Draft 2019-09 incluye `unevaluatedProperties` y otros constructs no universalmente soportados |
-| `$refStrategy` | `"none"` | `core/flattenSchema.ts:30-40` dropea propiedades con `$ref`; `"none"` inlinea todo eliminando la pérdida |
-| `name` | no pasar | Dispara wrapper `$ref/#/definitions/<name>` que `flattenSchema` dropearía completo |
+| Opción         | Valor           | Por qué                                                                                                                     |
+| -------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `target`       | `"jsonSchema7"` | Clientes MCP esperan Draft 7; Draft 2019-09 incluye `unevaluatedProperties` y otros constructs no universalmente soportados |
+| `$refStrategy` | `"none"`        | `core/flattenSchema.ts:30-40` dropea propiedades con `$ref`; `"none"` inlinea todo eliminando la pérdida                    |
+| `name`         | no pasar        | Dispara wrapper `$ref/#/definitions/<name>` que `flattenSchema` dropearía completo                                          |
 
 **Comportamiento de edge cases:**
 
-| Input Zod | Output JSON Schema | Comportamiento en `core.flattenSchema` |
-|---|---|---|
-| `z.object({ id: z.string() })` | `{ type: "object", properties: { id: { type: "string" } }, required: ["id"] }` | Aplanado normal en `inputSchema` |
-| `z.string()` (body primitivo) | `{ type: "string" }` | Envuelto bajo `properties.body` (flattenSchema.ts:15-18) |
-| `z.array(z.number())` | `{ type: "array", items: { type: "number" } }` | Envuelto bajo source key |
-| `z.discriminatedUnion(...)` | `{ anyOf: [...] }` (sin `type: "object"`) | Envuelto; warning en stderr |
-| `z.lazy(...)` con ciclo | `{}` (any) | Acepta cualquier cosa; warning |
+| Input Zod                      | Output JSON Schema                                                             | Comportamiento en `core.flattenSchema`                   |
+| ------------------------------ | ------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| `z.object({ id: z.string() })` | `{ type: "object", properties: { id: { type: "string" } }, required: ["id"] }` | Aplanado normal en `inputSchema`                         |
+| `z.string()` (body primitivo)  | `{ type: "string" }`                                                           | Envuelto bajo `properties.body` (flattenSchema.ts:15-18) |
+| `z.array(z.number())`          | `{ type: "array", items: { type: "number" } }`                                 | Envuelto bajo source key                                 |
+| `z.discriminatedUnion(...)`    | `{ anyOf: [...] }` (sin `type: "object"`)                                      | Envuelto; warning en stderr                              |
+| `z.lazy(...)` con ciclo        | `{}` (any)                                                                     | Acepta cualquier cosa; warning                           |
 
 **Memoización**: WeakMap keyed por identidad del Zod schema. El mismo `z.object({...})` usado en 50 rutas se convierte una sola vez. Correctamente identity-based: dos instancias con misma forma no comparten cache (comportamiento correcto).
 
@@ -262,7 +267,7 @@ type ExpressLayer = {
   };
   handle?: { stack?: ExpressLayer[] } & ((...a: unknown[]) => void);
   regexp?: RegExp & { fast_slash?: boolean };
-  path?: string;  // Express 5 en layers de sub-router montado
+  path?: string; // Express 5 en layers de sub-router montado
 };
 ```
 
@@ -278,13 +283,13 @@ import { warn } from "./warn.js";
 
 function getRootStack(app: Express): ExpressLayer[] {
   const a = app as unknown as {
-    router?:     { stack: ExpressLayer[] };
-    _router?:    { stack: ExpressLayer[] };
+    router?: { stack: ExpressLayer[] };
+    _router?: { stack: ExpressLayer[] };
     lazyrouter?: () => void;
   };
-  if (a.router?.stack) return a.router.stack;              // Express 5: getter lazy público
-  if (typeof a.lazyrouter === "function") a.lazyrouter();  // Express 4: forzar lazy init
-  if (a._router?.stack) return a._router.stack;            // Express 4: después de init
+  if (a.router?.stack) return a.router.stack; // Express 5: getter lazy público
+  if (typeof a.lazyrouter === "function") a.lazyrouter(); // Express 4: forzar lazy init
+  if (a._router?.stack) return a._router.stack; // Express 4: después de init
   warn("empty-router", {});
   return [];
 }
@@ -311,9 +316,7 @@ function walk(
   for (const layer of stack) {
     if (layer.route) {
       // Terminal: ruta registrada directamente en esta capa
-      const paths = Array.isArray(layer.route.path)
-        ? layer.route.path
-        : [layer.route.path];
+      const paths = Array.isArray(layer.route.path) ? layer.route.path : [layer.route.path];
 
       for (const p of paths) {
         const url = joinPath(mountPath, p);
@@ -321,7 +324,10 @@ function walk(
 
         for (const verb of verbs) {
           const key = `${verb} ${url}`;
-          if (seen.has(key)) { warn("duplicate", { verb, url }); continue; }
+          if (seen.has(key)) {
+            warn("duplicate", { verb, url });
+            continue;
+          }
           seen.add(key);
 
           const schema = extractSchema(layer.route.stack);
@@ -331,7 +337,7 @@ function walk(
             warn("missing-schema-strict", { verb, url });
             continue;
           }
-          if (schema?.hide) continue;  // opt-out silencioso
+          if (schema?.hide) continue; // opt-out silencioso
 
           out.push({ framework: "express", method: verb, url, schema });
         }
@@ -339,7 +345,10 @@ function walk(
     } else if (layer.name === "router" && layer.handle) {
       // Sub-router: descender recursivamente
       const subStack = (layer.handle as { stack?: ExpressLayer[] }).stack;
-      if (!subStack) { warn("malformed-router-layer", { mountPath }); continue; }
+      if (!subStack) {
+        warn("malformed-router-layer", { mountPath });
+        continue;
+      }
 
       const childMount = recoverMountPath(layer, mountPath);
       walk(subStack, joinPath(mountPath, childMount), out, seen, opts);
@@ -361,9 +370,15 @@ function joinPath(parent: string, child: string): string {
 
 // Extrae verbos HTTP del mapa methods. Filtra _all y verbos fuera del union HTTPMethod.
 function methodsOf(methods: Record<string, boolean>, url: string): HTTPMethod[] {
-  const VALID: ReadonlySet<string> = new Set(
-    ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
-  );
+  const VALID: ReadonlySet<string> = new Set([
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "HEAD",
+    "OPTIONS",
+  ]);
   return Object.keys(methods)
     .filter((m) => methods[m] && m !== "_all")
     .map((m) => m.toUpperCase())
@@ -377,29 +392,28 @@ function methodsOf(methods: Record<string, boolean>, url: string): HTTPMethod[] 
 // Recupera el prefijo de montaje de una layer de tipo router.
 // Express 5: layer.path; Express 4: regex parsing (patrón canónico).
 function recoverMountPath(layer: ExpressLayer, parentMount: string): string {
-  if (layer.path && typeof layer.path === "string") return layer.path;  // Express 5
+  if (layer.path && typeof layer.path === "string") return layer.path; // Express 5
 
   const regexp = layer.regexp;
   if (!regexp) return "";
-  if (regexp.fast_slash) return "";  // montado en "/"
+  if (regexp.fast_slash) return ""; // montado en "/"
 
   // Patrón canónico (express-list-endpoints):
-  const match = /^\^\\\/(?:\(\?:\(\[\^\\\/]\+\?\)\))?(.*?)\\\/\?\(\?=\\\/\|\$\)/i
-    .exec(regexp.source);
+  const match = /^\^\\\/(?:\(\?:\(\[\^\\\/]\+\?\)\))?(.*?)\\\/\?\(\?=\\\/\|\$\)/i.exec(
+    regexp.source,
+  );
   if (match?.[1]) {
     return `/${match[1].replace(/\\\//g, "/")}`;
   }
 
   warn("regex-parse-failed", { source: regexp.source, parentMount });
-  return "";  // graceful degradation: descendants surfacen bajo mountPath padre
+  return ""; // graceful degradation: descendants surfacen bajo mountPath padre
 }
 
 // Busca el primer middleware tagged con MCP_EXPOSE_SYMBOL en el stack de la ruta.
 const SCHEMA_KEY = MCP_EXPOSE_SYMBOL;
 
-function extractSchema(
-  routeStack: Array<{ handle: unknown }>,
-): RouteSchema | undefined {
+function extractSchema(routeStack: Array<{ handle: unknown }>): RouteSchema | undefined {
   let found: RouteSchema | undefined;
   let extra = 0;
 
@@ -436,8 +450,8 @@ import { ToolRegistry, resolveTool } from "@mcp-auto-expose/core";
 import { walkRoutes } from "./walkRoutes.js";
 
 export interface AutoExposeOptions {
-  strictSchema?: boolean;  // default: true (ver §3.1)
-  eager?: boolean;         // default: false
+  strictSchema?: boolean; // default: true (ver §3.1)
+  eager?: boolean; // default: false
   basePath?: string;
 }
 
@@ -478,6 +492,7 @@ export function autoExpose(app: Express, options: AutoExposeOptions = {}): AutoE
 ```
 
 **Timing y memoización:**
+
 - `eager: false` (default): walk perezoso en primera llamada a `tools()`, memoizado. No hay `app.ready()` en Express; el marcador natural es el usuario invocando `tools()` justo antes de `startStdio`.
 - `eager: true`: walk en `autoExpose()` para detectar problemas de configuración en bootstrap.
 - `refresh()`: para tests y escenarios hot-reload donde se añaden rutas después de la primera llamada.
@@ -496,33 +511,33 @@ export function warn(code: string, ctx: Record<string, unknown>): void {
 
 **Catálogo de warnings:**
 
-| Código | Trigger | Contexto emitido |
-|---|---|---|
-| `missing-schema-strict` | `strictSchema:true` y ruta sin `mcpExpose` tagged | `{ verb, url }` |
-| `regex-parse-failed` | Express 4: regex de mount no matchea patrón canónico | `{ source, parentMount }` |
-| `unknown-method` | Verbo fuera del union `HTTPMethod` (e.g., `PROPFIND`) | `{ verb, url }` |
-| `multiple-mcpExpose` | Más de un middleware tagged en la misma ruta | `{ count, hint }` |
-| `duplicate` | Mismo `METHOD url` producido dos veces en el walk | `{ verb, url }` |
-| `malformed-router-layer` | `layer.name === "router"` sin `handle.stack` | `{ mountPath }` |
-| `empty-router` | Stack raíz vacío (app sin rutas) | `{}` |
-| `zod-convert-failed` | `zodToJsonSchema` lanza excepción | `{ message }` |
-| `schema-has-ref` | Output de `zodToJsonSchema` contiene `$ref` | `{ hint }` |
+| Código                   | Trigger                                               | Contexto emitido          |
+| ------------------------ | ----------------------------------------------------- | ------------------------- |
+| `missing-schema-strict`  | `strictSchema:true` y ruta sin `mcpExpose` tagged     | `{ verb, url }`           |
+| `regex-parse-failed`     | Express 4: regex de mount no matchea patrón canónico  | `{ source, parentMount }` |
+| `unknown-method`         | Verbo fuera del union `HTTPMethod` (e.g., `PROPFIND`) | `{ verb, url }`           |
+| `multiple-mcpExpose`     | Más de un middleware tagged en la misma ruta          | `{ count, hint }`         |
+| `duplicate`              | Mismo `METHOD url` producido dos veces en el walk     | `{ verb, url }`           |
+| `malformed-router-layer` | `layer.name === "router"` sin `handle.stack`          | `{ mountPath }`           |
+| `empty-router`           | Stack raíz vacío (app sin rutas)                      | `{}`                      |
+| `zod-convert-failed`     | `zodToJsonSchema` lanza excepción                     | `{ message }`             |
+| `schema-has-ref`         | Output de `zodToJsonSchema` contiene `$ref`           | `{ hint }`                |
 
 Todos los warnings tienen el prefijo único `[mcp-auto-expose:express]` para grep rápido en producción.
 
 ### 3.7. Matriz de compatibilidad Express 4 vs 5
 
-| Feature | Express 4 | Express 5 | Estrategia del adaptador |
-|---|---|---|---|
-| Router access | `app._router` (undefined hasta primer use) | `app.router` getter lazy público | `app.router` → `lazyrouter?.()` → `app._router` → `[]` |
-| Lazy router init | `app.lazyrouter()` (semi-público) | No necesario (`app.router` lo activa) | Llamar `lazyrouter` solo si `app.router` ausente |
-| Mount path en sub-router | solo `layer.regexp` | `layer.path` poblado | Preferir `layer.path`; fallback regex-parsing canónico |
-| HEAD auto-generación | No | No | Emitir HEAD solo si registrado explícitamente |
-| Wildcard | `'/users/*'` (sin nombre) | `'/users/*splat'` (nombre requerido) | Passthrough verbatim |
-| Optional segments | `:id?` | `'{/:id}'` brace syntax | Passthrough verbatim |
-| `app.all(...)` | `methods._all === true` + verbos | Igual | Filtrar `_all` en `methodsOf` |
-| Array de paths | `app.get(['/a', '/b'], ...)` | Igual | `Array.isArray(layer.route.path)` |
-| Schema nativo | Ninguno | Ninguno | `mcpExpose` inyectado por el usuario |
+| Feature                  | Express 4                                  | Express 5                             | Estrategia del adaptador                               |
+| ------------------------ | ------------------------------------------ | ------------------------------------- | ------------------------------------------------------ |
+| Router access            | `app._router` (undefined hasta primer use) | `app.router` getter lazy público      | `app.router` → `lazyrouter?.()` → `app._router` → `[]` |
+| Lazy router init         | `app.lazyrouter()` (semi-público)          | No necesario (`app.router` lo activa) | Llamar `lazyrouter` solo si `app.router` ausente       |
+| Mount path en sub-router | solo `layer.regexp`                        | `layer.path` poblado                  | Preferir `layer.path`; fallback regex-parsing canónico |
+| HEAD auto-generación     | No                                         | No                                    | Emitir HEAD solo si registrado explícitamente          |
+| Wildcard                 | `'/users/*'` (sin nombre)                  | `'/users/*splat'` (nombre requerido)  | Passthrough verbatim                                   |
+| Optional segments        | `:id?`                                     | `'{/:id}'` brace syntax               | Passthrough verbatim                                   |
+| `app.all(...)`           | `methods._all === true` + verbos           | Igual                                 | Filtrar `_all` en `methodsOf`                          |
+| Array de paths           | `app.get(['/a', '/b'], ...)`               | Igual                                 | `Array.isArray(layer.route.path)`                      |
+| Schema nativo            | Ninguno                                    | Ninguno                               | `mcpExpose` inyectado por el usuario                   |
 
 `peerDependencies: { "express": "^4 || ^5" }`. El suite de tests valida con Express 5 en devDependencies. Los fallback paths de Express 4 se verifican con stacks mockeados (ver §6, Tarea 4).
 

@@ -151,7 +151,10 @@ describe("reconstructRequest", () => {
       process.stderr.write = originalWrite;
     }
 
-    assert.ok(stderrOutput.includes("body-on-bodiless-method"), "stderr must warn about body on bodiless method");
+    assert.ok(
+      stderrOutput.includes("body-on-bodiless-method"),
+      "stderr must warn about body on bodiless method",
+    );
     assert.equal(result.body, undefined);
   });
 

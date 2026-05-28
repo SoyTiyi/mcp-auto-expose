@@ -48,7 +48,9 @@ describe("mcpHeader annotation", () => {
   });
 
   it("mcpHeader with .describe() preserves both description and the header name", () => {
-    const schema = z.object({ tenant_id: mcpHeader(z.string().describe("Tenant from auth"), "TenantId") });
+    const schema = z.object({
+      tenant_id: mcpHeader(z.string().describe("Tenant from auth"), "TenantId"),
+    });
     const result = convertCached(schema);
     const props = result["properties"] as Record<string, Record<string, unknown>>;
     const prop = props["tenant_id"];

@@ -88,17 +88,17 @@ Route walking is **lazy by default** — it happens on the first `handle.tools()
 
 #### `AutoExposeOptions`
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `strictSchema` | `boolean` | `true` | When `true`, only routes that have an `mcpExpose()` middleware are exposed. When `false`, all routes are exposed regardless. See [strictSchema default](#strictschema-defaults-to-true) for rationale. |
-| `eager` | `boolean` | `false` | When `true`, the route walk runs immediately in `autoExpose()` instead of on the first `tools()` call. |
-| `basePath` | `string` | `""` | URL prefix to strip from route paths before generating tool names. Useful when the app is mounted at a sub-path in a larger system. |
+| Option         | Type      | Default | Description                                                                                                                                                                                            |
+| -------------- | --------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `strictSchema` | `boolean` | `true`  | When `true`, only routes that have an `mcpExpose()` middleware are exposed. When `false`, all routes are exposed regardless. See [strictSchema default](#strictschema-defaults-to-true) for rationale. |
+| `eager`        | `boolean` | `false` | When `true`, the route walk runs immediately in `autoExpose()` instead of on the first `tools()` call.                                                                                                 |
+| `basePath`     | `string`  | `""`    | URL prefix to strip from route paths before generating tool names. Useful when the app is mounted at a sub-path in a larger system.                                                                    |
 
 #### `AutoExposeHandle`
 
-| Method | Returns | Description |
-|---|---|---|
-| `tools()` | `MCPTool[]` | Lazy walk + memoized result. Safe to call multiple times — the walk runs only once. |
+| Method      | Returns     | Description                                                                                      |
+| ----------- | ----------- | ------------------------------------------------------------------------------------------------ |
+| `tools()`   | `MCPTool[]` | Lazy walk + memoized result. Safe to call multiple times — the walk runs only once.              |
 | `refresh()` | `MCPTool[]` | Clears the cache and re-walks all routes. Use after dynamically registering routes post-startup. |
 
 ---
@@ -125,15 +125,15 @@ Place `mcpExpose()` before the route handler in the middleware chain. Multiple `
 
 #### `McpExposeSpec`
 
-| Field | Type | Description |
-|---|---|---|
-| `body` | `ZodTypeAny` | Schema for `req.body`. |
-| `query` | `ZodTypeAny` | Schema for `req.query` (Express idiom). Internally mapped to `RouteSchema.querystring`. |
-| `params` | `ZodTypeAny` | Schema for `req.params` (URL path parameters). |
-| `description` | `string` | Human-readable description exposed in the MCP tool descriptor. |
-| `summary` | `string` | Short one-line summary for the tool. |
-| `tags` | `string[]` | Grouping tags for the tool. |
-| `hide` | `boolean` | When `true`, silently excludes this route from the tool catalog even if `strictSchema: false`. |
+| Field         | Type         | Description                                                                                    |
+| ------------- | ------------ | ---------------------------------------------------------------------------------------------- |
+| `body`        | `ZodTypeAny` | Schema for `req.body`.                                                                         |
+| `query`       | `ZodTypeAny` | Schema for `req.query` (Express idiom). Internally mapped to `RouteSchema.querystring`.        |
+| `params`      | `ZodTypeAny` | Schema for `req.params` (URL path parameters).                                                 |
+| `description` | `string`     | Human-readable description exposed in the MCP tool descriptor.                                 |
+| `summary`     | `string`     | Short one-line summary for the tool.                                                           |
+| `tags`        | `string[]`   | Grouping tags for the tool.                                                                    |
+| `hide`        | `boolean`    | When `true`, silently excludes this route from the tool catalog even if `strictSchema: false`. |
 
 ---
 
@@ -147,10 +147,10 @@ By requiring an explicit `mcpExpose()` call, the Express adapter makes exposure 
 
 **Comparison:**
 
-| Adapter | `strictSchema` default | Rationale |
-|---|---|---|
-| `@mcp-auto-expose/fastify` | `false` | Fastify routes are typically schema-annotated; discovery is additive |
-| `@mcp-auto-expose/express` | `true` | Express apps accumulate undocumented routes; opt-in prevents accidental exposure |
+| Adapter                    | `strictSchema` default | Rationale                                                                        |
+| -------------------------- | ---------------------- | -------------------------------------------------------------------------------- |
+| `@mcp-auto-expose/fastify` | `false`                | Fastify routes are typically schema-annotated; discovery is additive             |
+| `@mcp-auto-expose/express` | `true`                 | Express apps accumulate undocumented routes; opt-in prevents accidental exposure |
 
 To expose all routes regardless of `mcpExpose()` decoration, pass `strictSchema: false` explicitly:
 
@@ -202,11 +202,11 @@ console.error("debug info");
 
 The adapter supports both Express 4 and Express 5. Differences are handled internally and transparently.
 
-| Feature | Express 4 | Express 5.0.x | Express 5.1+ (router@2.x) |
-|---|---|---|---|
-| Router access | `app._router` (private) — requires calling `app.lazyrouter()` first | `app.router` (lazy public getter) | Same as 5.0.x |
-| Mount path on sub-router layers | Recovered by parsing the layer's compiled regexp | Available directly as `layer.path` (string) | **Not stored** — recovered via `autoExpose` wrapper |
-| Peer dependency range | `"express": "^4 \|\| ^5"` | Same | Same |
+| Feature                         | Express 4                                                           | Express 5.0.x                               | Express 5.1+ (router@2.x)                           |
+| ------------------------------- | ------------------------------------------------------------------- | ------------------------------------------- | --------------------------------------------------- |
+| Router access                   | `app._router` (private) — requires calling `app.lazyrouter()` first | `app.router` (lazy public getter)           | Same as 5.0.x                                       |
+| Mount path on sub-router layers | Recovered by parsing the layer's compiled regexp                    | Available directly as `layer.path` (string) | **Not stored** — recovered via `autoExpose` wrapper |
+| Peer dependency range           | `"express": "^4 \|\| ^5"`                                           | Same                                        | Same                                                |
 
 **Express 5.1+ ordering requirement:** In Express 5.1+, the mount path is compiled into a closure and is not accessible after `app.use()` returns. To recover it, `autoExpose(app)` wraps `app.use` to record mount paths before they are consumed. This only works for `app.use` calls made **after** `autoExpose` is called.
 
@@ -219,10 +219,10 @@ The adapter supports both Express 4 and Express 5. Differences are handled inter
 
 The following table describes how `zod-to-json-schema` (via `convertCached`) handles various Zod schema shapes and what the resulting MCP tool schema looks like.
 
-| Zod schema | JSON Schema output | Notes |
-|---|---|---|
-| `z.object({ id: z.string() })` | `{ type: "object", properties: { id: { type: "string" } }, required: ["id"] }` | Standard case. Required fields are inferred from Zod's optionality. |
-| `z.string()` (primitive body) | `{ type: "string" }` | Valid for `body` or `query` fields. No wrapping is applied. |
-| `z.array(z.string())` | `{ type: "array", items: { type: "string" } }` | Arrays are converted inline. |
-| `z.discriminatedUnion("type", [...])` | `{ oneOf: [...] }` | Each variant becomes a branch in `oneOf`. Works as long as variants are flat `z.object()` shapes. |
-| `z.lazy(() => Node)` (recursive) | `{}` | `$refStrategy: "none"` is used, so recursive schemas cannot be expressed. The walk emits a `schema-has-ref` warning to `stderr` and falls back to `{}`. Use flat schemas instead. |
+| Zod schema                            | JSON Schema output                                                             | Notes                                                                                                                                                                             |
+| ------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `z.object({ id: z.string() })`        | `{ type: "object", properties: { id: { type: "string" } }, required: ["id"] }` | Standard case. Required fields are inferred from Zod's optionality.                                                                                                               |
+| `z.string()` (primitive body)         | `{ type: "string" }`                                                           | Valid for `body` or `query` fields. No wrapping is applied.                                                                                                                       |
+| `z.array(z.string())`                 | `{ type: "array", items: { type: "string" } }`                                 | Arrays are converted inline.                                                                                                                                                      |
+| `z.discriminatedUnion("type", [...])` | `{ oneOf: [...] }`                                                             | Each variant becomes a branch in `oneOf`. Works as long as variants are flat `z.object()` shapes.                                                                                 |
+| `z.lazy(() => Node)` (recursive)      | `{}`                                                                           | `$refStrategy: "none"` is used, so recursive schemas cannot be expressed. The walk emits a `schema-has-ref` warning to `stderr` and falls back to `{}`. Use flat schemas instead. |

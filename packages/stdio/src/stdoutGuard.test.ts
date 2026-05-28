@@ -9,7 +9,12 @@ function captureStderr(): { lines: string[]; stop: () => void } {
     lines.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf-8"));
     return true;
   }) as typeof process.stderr.write;
-  return { lines, stop: () => { process.stderr.write = original; } };
+  return {
+    lines,
+    stop: () => {
+      process.stderr.write = original;
+    },
+  };
 }
 
 // Capture stdout writes for assertion
@@ -20,14 +25,15 @@ function captureStdout(): { lines: string[]; stop: () => void } {
     lines.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf-8"));
     return true;
   }) as typeof process.stdout.write;
-  return { lines, stop: () => { process.stdout.write = original; } };
+  return {
+    lines,
+    stop: () => {
+      process.stdout.write = original;
+    },
+  };
 }
 
-import {
-  installStdoutGuard,
-  restoreStdoutGuard,
-  isStdoutGuardInstalled,
-} from "./stdoutGuard.js";
+import { installStdoutGuard, restoreStdoutGuard, isStdoutGuardInstalled } from "./stdoutGuard.js";
 
 describe("stdoutGuard", () => {
   afterEach(() => {

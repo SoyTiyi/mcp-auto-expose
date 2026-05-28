@@ -99,22 +99,22 @@ fastify.addHook("onRoute", (routeOptions) => {
 
 Determinístico, alineado con el patrón CRUD habitual:
 
-| Método HTTP  | Patrón                          | Entrada                  | Salida                 |
-|--------------|---------------------------------|--------------------------|------------------------|
-| GET (lista)  | `list_{resource}`               | `GET /api/users`         | `list_users`           |
-| GET (item)   | `get_{resource}_by_{param}`     | `GET /api/users/:id`     | `get_users_by_id`      |
-| POST         | `create_{resource}`             | `POST /api/users`        | `create_users`         |
-| PUT          | `replace_{resource}_by_{param}` | `PUT /api/users/:id`     | `replace_users_by_id`  |
-| PATCH        | `update_{resource}_by_{param}`  | `PATCH /api/users/:id`   | `update_users_by_id`   |
-| DELETE       | `delete_{resource}_by_{param}`  | `DELETE /api/users/:id`  | `delete_users_by_id`   |
-| HEAD/OPTIONS | `{method_lower}_{resource}`     | `OPTIONS /api/users`     | `options_users`        |
+| Método HTTP  | Patrón                          | Entrada                 | Salida                |
+| ------------ | ------------------------------- | ----------------------- | --------------------- |
+| GET (lista)  | `list_{resource}`               | `GET /api/users`        | `list_users`          |
+| GET (item)   | `get_{resource}_by_{param}`     | `GET /api/users/:id`    | `get_users_by_id`     |
+| POST         | `create_{resource}`             | `POST /api/users`       | `create_users`        |
+| PUT          | `replace_{resource}_by_{param}` | `PUT /api/users/:id`    | `replace_users_by_id` |
+| PATCH        | `update_{resource}_by_{param}`  | `PATCH /api/users/:id`  | `update_users_by_id`  |
+| DELETE       | `delete_{resource}_by_{param}`  | `DELETE /api/users/:id` | `delete_users_by_id`  |
+| HEAD/OPTIONS | `{method_lower}_{resource}`     | `OPTIONS /api/users`    | `options_users`       |
 
 **Algoritmo:**
 
 1. Tokenizar `url` por `/`, descartando vacíos.
 2. Clasificar segmentos en `static` y `param` (`:id` o `{id}`).
 3. `resource = último segmento estático` (snake_case, plural respetado).
-4. `params = nombres de parámetros sin `:` ni `{}``.
+4. `params = nombres de parámetros sin `:`ni`{}``.
 5. Construir el nombre según la tabla. Si hay >1 param, concatenar con `_and_`.
 6. Si el nombre supera 64 caracteres, truncar y añadir `_h<hash6>` (hash determinista del path completo).
 7. Si hay colisión en el `ToolRegistry`, añadir sufijo `_2`, `_3`, …; loguear a `stderr`.
@@ -164,8 +164,7 @@ description = routeSchema?.description
 Compatible con `Tool` del `@modelcontextprotocol/sdk`:
 
 ```ts
-export type HTTPMethod =
-  | "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
+export type HTTPMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
 
 export interface MCPToolInputSchema {
   type: "object";
@@ -358,22 +357,30 @@ const app = Fastify();
 await app.register(autoExpose);
 
 app.get("/api/users", { schema: { description: "Listar usuarios" } }, async () => []);
-app.get("/api/users/:id", {
-  schema: {
-    description: "Obtener usuario por id",
-    params: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
-  },
-}, async () => ({}));
-app.post("/api/users", {
-  schema: {
-    description: "Crear usuario",
-    body: {
-      type: "object",
-      properties: { name: { type: "string" }, email: { type: "string" } },
-      required: ["name", "email"],
+app.get(
+  "/api/users/:id",
+  {
+    schema: {
+      description: "Obtener usuario por id",
+      params: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
     },
   },
-}, async () => ({}));
+  async () => ({}),
+);
+app.post(
+  "/api/users",
+  {
+    schema: {
+      description: "Crear usuario",
+      body: {
+        type: "object",
+        properties: { name: { type: "string" }, email: { type: "string" } },
+        required: ["name", "email"],
+      },
+    },
+  },
+  async () => ({}),
+);
 
 await app.ready();
 process.stderr.write(JSON.stringify(app.mcpAutoExpose.tools(), null, 2));

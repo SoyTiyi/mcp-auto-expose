@@ -26,15 +26,19 @@ interface TestRequest {
   body: string;
 }
 
-function startTestServer(
-  handler: (req: TestRequest) => { status: number; body: string },
-): Promise<{ baseUrl: string; close: () => Promise<void>; lastRequest: () => TestRequest | undefined }> {
+function startTestServer(handler: (req: TestRequest) => { status: number; body: string }): Promise<{
+  baseUrl: string;
+  close: () => Promise<void>;
+  lastRequest: () => TestRequest | undefined;
+}> {
   let lastReq: TestRequest | undefined;
 
   return new Promise((resolve) => {
     const server = http.createServer((req, res) => {
       let rawBody = "";
-      req.on("data", (chunk: Buffer) => { rawBody += chunk.toString(); });
+      req.on("data", (chunk: Buffer) => {
+        rawBody += chunk.toString();
+      });
       req.on("end", () => {
         const testReq: TestRequest = {
           method: req.method ?? "",
@@ -66,10 +70,15 @@ describe("makeHttpCaller", () => {
   let lastRequest: () => TestRequest | undefined;
 
   before(async () => {
-    ({ baseUrl, close: closeServer, lastRequest } = await startTestServer((req) => {
+    ({
+      baseUrl,
+      close: closeServer,
+      lastRequest,
+    } = await startTestServer((req) => {
       if (req.url === "/error") return { status: 500, body: JSON.stringify({ error: "internal" }) };
       if (req.url === "/users") return { status: 200, body: JSON.stringify([{ id: "u1" }]) };
-      if (req.url?.startsWith("/users/")) return { status: 200, body: JSON.stringify({ id: req.url.split("/").pop() }) };
+      if (req.url?.startsWith("/users/"))
+        return { status: 200, body: JSON.stringify({ id: req.url.split("/").pop() }) };
       return { status: 200, body: JSON.stringify({ ok: true }) };
     }));
   });
@@ -131,7 +140,9 @@ describe("makeHttpCaller", () => {
   });
 
   it("4. Timeout → isError: true", async () => {
-    const hangServer = http.createServer(() => { /* intentionally never responds */ });
+    const hangServer = http.createServer(() => {
+      /* intentionally never responds */
+    });
     const hangBaseUrl = await new Promise<string>((resolve) => {
       hangServer.listen(0, "127.0.0.1", () => {
         const addr = hangServer.address() as { port: number };
@@ -201,7 +212,10 @@ describe("makeHttpCaller", () => {
     };
     await caller(tool, {}, ctx);
     const req = lastRequest()!;
-    assert.equal(req.headers["traceparent"], "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+    assert.equal(
+      req.headers["traceparent"],
+      "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+    );
     assert.equal(req.headers["tracestate"], "rojo=00f067aa0ba902b7");
     assert.equal(req.headers["baggage"], "userId=alice");
   });

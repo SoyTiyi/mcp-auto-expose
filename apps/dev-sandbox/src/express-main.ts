@@ -11,13 +11,9 @@ const handle = autoExpose(app, { strictSchema: true });
 
 const router = Router();
 
-router.get(
-  "/users",
-  mcpExpose({ description: "List all users" }),
-  (_req, res) => {
-    res.json([]);
-  },
-);
+router.get("/users", mcpExpose({ description: "List all users" }), (_req, res) => {
+  res.json([]);
+});
 
 router.get(
   "/users/:id",

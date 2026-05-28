@@ -42,7 +42,10 @@ describe("decodeHeaderValue", () => {
     assert.equal(r.ok, false);
   });
   it("missing closing sentinel → treated as literal", () => {
-    assert.deepEqual(decodeHeaderValue("=?base64?SGVsbG8="), { ok: true, value: "=?base64?SGVsbG8=" });
+    assert.deepEqual(decodeHeaderValue("=?base64?SGVsbG8="), {
+      ok: true,
+      value: "=?base64?SGVsbG8=",
+    });
   });
 });
 

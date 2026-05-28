@@ -23,7 +23,9 @@ function makeServerStub(onClose?: () => void): McpServer {
   return {
     server: { setRequestHandler: () => {} },
     connect: async () => {},
-    close: async () => { onClose?.(); },
+    close: async () => {
+      onClose?.();
+    },
   } as unknown as McpServer;
 }
 
@@ -58,7 +60,9 @@ describe("startStdio", () => {
 
   it("close() delegates to server.close()", async () => {
     let closeCalled = false;
-    const server = makeServerStub(() => { closeCalled = true; });
+    const server = makeServerStub(() => {
+      closeCalled = true;
+    });
     const transport = makeTransportStub();
     const handle = await startStdio(
       { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false, onToolCall: noop },
@@ -72,7 +76,9 @@ describe("startStdio", () => {
     let connectedTransport: unknown = null;
     const server = {
       server: { setRequestHandler: () => {} },
-      connect: async (t: unknown) => { connectedTransport = t; },
+      connect: async (t: unknown) => {
+        connectedTransport = t;
+      },
       close: async () => {},
     } as unknown as McpServer;
     const transport = makeTransportStub();
@@ -106,7 +112,7 @@ describe("startStdio", () => {
         version: "0.0.0",
         tools: sampleTools,
         installGuard: false,
-        apiBaseUrl: "http://127.0.0.1:9", 
+        apiBaseUrl: "http://127.0.0.1:9",
         onToolCall: async (tool) => {
           calls.push(tool.name);
           return { content: [{ type: "text" as const, text: "explicit" }] };
@@ -114,7 +120,7 @@ describe("startStdio", () => {
       },
       { server, transport },
     );
-    
+
     assert.equal(calls.length, 0);
   });
 });

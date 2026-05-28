@@ -16,7 +16,9 @@ export function sanitizeToolXMcpHeaders(
   inputSchema: Record<string, unknown>,
   warnFn: (code: string, detail?: unknown) => void = defaultWarn,
 ): void {
-  const properties = inputSchema["properties"] as Record<string, Record<string, unknown>> | undefined;
+  const properties = inputSchema["properties"] as
+    | Record<string, Record<string, unknown>>
+    | undefined;
   if (!properties) return;
 
   const seenLower = new Map<string, string>();
@@ -41,7 +43,12 @@ export function sanitizeToolXMcpHeaders(
     const lower = (annotation as string).toLowerCase();
     const prev = seenLower.get(lower);
     if (prev !== undefined) {
-      warnFn("xmcpheader-duplicate", { tool: toolName, prop: propKey, previousProp: prev, name: annotation });
+      warnFn("xmcpheader-duplicate", {
+        tool: toolName,
+        prop: propKey,
+        previousProp: prev,
+        name: annotation,
+      });
       delete prop["x-mcp-header"];
       continue;
     }
