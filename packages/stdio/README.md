@@ -1,65 +1,65 @@
 # @mcp-auto-expose/stdio
 
-Conecta el catálogo de tools producido por cualquier adaptador `mcp-auto-expose` con un servidor MCP local usando el transporte stdio.
+Connects the tool catalog produced by any `mcp-auto-expose` adapter to a local MCP server using the stdio transport.
 
-## Uso básico
+## Basic usage
 
 ```ts
 import Fastify from "fastify";
 import { autoExpose } from "@mcp-auto-expose/fastify";
 import { startStdio } from "@mcp-auto-expose/stdio";
 
-const app = Fastify({ logger: { stream: process.stderr } }); // <-- stderr obligatorio
+const app = Fastify({ logger: { stream: process.stderr } }); // <-- stderr required
 await app.register(autoExpose);
 
-// define tus rutas aquí...
+// define your routes here...
 
 await app.ready();
 await startStdio({
-  name: "mi-servidor-mcp",
+  name: "my-mcp-server",
   version: "1.0.0",
   tools: app.mcpAutoExpose.tools(),
 });
 ```
 
-El proceso queda bloqueado escuchando en `stdin`/`stdout` el protocolo JSON-RPC 2.0.
+The process blocks listening on `stdin`/`stdout` for the JSON-RPC 2.0 protocol.
 
 ## API
 
 ### `startStdio(options): Promise<StartStdioHandle>`
 
-| Opción         | Tipo        | Default     | Descripción                                             |
-| -------------- | ----------- | ----------- | ------------------------------------------------------- |
-| `name`         | `string`    | —           | Nombre del servidor MCP                                 |
-| `version`      | `string`    | —           | Versión del servidor                                    |
-| `tools`        | `MCPTool[]` | —           | Array producido por `app.mcpAutoExpose.tools()`         |
-| `installGuard` | `boolean`   | `true`      | Instala el blindaje global `console.*` → stderr         |
-| `onToolCall`   | función     | placeholder | Hook para invocación real de tools (ver Fase siguiente) |
+| Option         | Type        | Default     | Description                                              |
+| -------------- | ----------- | ----------- | -------------------------------------------------------- |
+| `name`         | `string`    | —           | MCP server name                                          |
+| `version`      | `string`    | —           | Server version                                           |
+| `tools`        | `MCPTool[]` | —           | Array produced by `app.mcpAutoExpose.tools()`            |
+| `installGuard` | `boolean`   | `true`      | Installs the global `console.*` → stderr guard           |
+| `onToolCall`   | function    | placeholder | Hook for real tool invocation (see next phase)           |
 
-**`StartStdioHandle.close()`**: cierra el servidor MCP ordenadamente.
+**`StartStdioHandle.close()`**: gracefully closes the MCP server.
 
 ### `installStdoutGuard()` / `restoreStdoutGuard()`
 
-Parcheado global de `console.*` que redirige toda salida a `stderr`, protegiendo la tubería JSON-RPC en `stdout`. Es idempotente. `restoreStdoutGuard()` revierte el estado (útil en tests).
+Global patch of `console.*` that redirects all output to `stderr`, protecting the JSON-RPC pipe on `stdout`. It is idempotent. `restoreStdoutGuard()` reverts the state (useful in tests).
 
-## Restricciones contractuales
+## Contractual constraints
 
-### `process.stdout.write` está reservado al protocolo
+### `process.stdout.write` is reserved for the protocol
 
-`StdioServerTransport` del SDK MCP escribe al `stdout` del proceso directamente. El guard NO intercepta `process.stdout.write` — hacerlo destruiría el protocolo. **El código host no debe escribir en `process.stdout` ni en streams que drenen en él.**
+The MCP SDK's `StdioServerTransport` writes directly to the process `stdout`. The guard does NOT intercept `process.stdout.write` — doing so would destroy the protocol. **Host code must not write to `process.stdout` or any streams that drain into it.**
 
-### Logger de Fastify
+### Fastify logger
 
-Pino (logger por defecto de Fastify v5) escribe a `stdout` salvo configuración explícita. En modo stdio es **obligatorio** configurarlo hacia `stderr`:
+Pino (Fastify v5's default logger) writes to `stdout` unless explicitly configured otherwise. In stdio mode it is **required** to configure it to point to `stderr`:
 
 ```ts
-// Opción 1: stream explícito
+// Option 1: explicit stream
 const app = Fastify({ logger: { stream: process.stderr } });
 
-// Opción 2: deshabilitar
+// Option 2: disable
 const app = Fastify({ logger: false });
 ```
 
 ### tools/call
 
-En la Fase 2 `tools/call` devuelve un placeholder estructurado con el método HTTP y URL de destino. La invocación real al handler de Fastify se implementa en una fase posterior (requiere extender `MCPTool._source` con el mapeo flatten → `{params, querystring, body}`).
+In Phase 2, `tools/call` returns a structured placeholder with the HTTP method and destination URL. The actual invocation of the Fastify handler is implemented in a later phase (requires extending `MCPTool._source` with the flatten → `{params, querystring, body}` mapping).

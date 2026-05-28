@@ -1,34 +1,34 @@
-# Fase 3 — Motor Analítico y Adaptador para Express.js
+# Phase 3 — Analytics Engine and Express.js Adapter
 
-> **Estatus:** Especificación pendiente de aprobación humana. Metodología: Spec-Driven Development.
-> **Anclaje:** `docs/principal-document.txt` §38–§41 (introspección Express), §184–§191 (Fase 4 del roadmap).
-> **Fecha:** 2026-05-23.
-> **Predecesoras aprobadas:** Fase 1 (adaptador Fastify), Fase 2 (transporte stdio).
+> **Status:** Specification pending human approval. Methodology: Spec-Driven Development.
+> **Anchor:** `docs/principal-document.txt` §38–§41 (Express introspection), §184–§191 (Phase 4 of roadmap).
+> **Date:** 2026-05-23.
+> **Approved predecessors:** Phase 1 (Fastify adapter), Phase 2 (stdio transport).
 
-## 1. Objetivo
+## 1. Objective
 
-Construir `@mcp-auto-expose/express` (`packages/express`): motor reflectivo que itera recursivamente `app.router` (v5) / `app._router` (v4) tras el registro de rutas, lee schemas Zod inyectados vía `mcpExpose(spec)` middleware, los convierte a JSON Schema Draft 7, y produce `MCPTool[]` con la **misma forma exacta** que el adaptador Fastify para que el servidor MCP de Fase 2 los consuma sin cambios.
+Build `@mcp-auto-expose/express` (`packages/express`): a reflective engine that recursively iterates `app.router` (v5) / `app._router` (v4) after route registration, reads Zod schemas injected via `mcpExpose(spec)` middleware, converts them to JSON Schema Draft 7, and produces `MCPTool[]` with the **exact same shape** as the Fastify adapter so that the Phase 2 MCP server consumes them without changes.
 
-**Fuera de alcance:**
+**Out of scope:**
 
-- Dispatch real de `tools/call` a handlers Express (requiere extender `_source` en core; fase posterior).
-- Streamable HTTP, SEP-2243, SEP-2549, SEP-414 (Fase 4 nueva).
-- Validación HTTP en runtime vía `mcpExpose` (posible extensión futura con flag `validate:true`, fuera de MVP).
+- Real dispatch of `tools/call` to Express handlers (requires extending `_source` in core; later phase).
+- Streamable HTTP, SEP-2243, SEP-2549, SEP-414 (new Phase 4).
+- Runtime HTTP validation via `mcpExpose` (possible future extension with `validate:true` flag, out of MVP).
 
-## 2. Arquitectura
+## 2. Architecture
 
 ```
 +------------------+   autoExpose(app)    +--------------------------+
-| Aplicación host  | -------------------> | packages/express         |
-| (Express 4 o 5)  |                      | @mcp-auto-expose/express |
+| Host application | -------------------> | packages/express         |
+| (Express 4 or 5) |                      | @mcp-auto-expose/express |
 +------------------+                      +-----------+--------------+
         |                                             |
         | app.router (v5)                             |
-        | o app._router (v4, lazy)                    | RouteDescriptor[]
+        | or app._router (v4, lazy)                   | RouteDescriptor[]
         |                                             |
         v                                             v
 +------------------+                      +--------------------------+
-| walkRoutes()     |  ─── recursivo ────> | resolveTool (core)       |
+| walkRoutes()     |  ─── recursive ────> | resolveTool (core)       |
 | + extractSchema  |                      | ToolRegistry (core)      |
 +------------------+                      +--------------------------+
         ^                                             |
@@ -39,25 +39,25 @@ Construir `@mcp-auto-expose/express` (`packages/express`): motor reflectivo que 
 |   handler)                               +--------------------------+
 ```
 
-### 2.1. Paquetes a crear
+### 2.1. Packages to create
 
 - `packages/express` → `@mcp-auto-expose/express`
-  - `warn.ts`: helper único de logging a `stderr` con prefijo `[mcp-auto-expose:express]`.
-  - `zodConvert.ts`: `convertCached(schema)` — Zod → JSON Schema Draft 7 con WeakMap cache.
+  - `warn.ts`: single logging helper to `stderr` with prefix `[mcp-auto-expose:express]`.
+  - `zodConvert.ts`: `convertCached(schema)` — Zod → JSON Schema Draft 7 with WeakMap cache.
   - `mcpExpose.ts`: `mcpExpose(spec): RequestHandler`, `MCP_EXPOSE_SYMBOL`, `specToRouteSchema`.
-  - `walkRoutes.ts`: walker recursivo + helpers `joinPath`, `methodsOf`, `recoverMountPath`, `extractSchema`.
-  - `autoExpose.ts`: `autoExpose(app, options?)` factory — `AutoExposeHandle` con `tools()` lazy+memoized y `refresh()`.
-  - `src/index.ts`: barrel de exports públicos.
+  - `walkRoutes.ts`: recursive walker + helpers `joinPath`, `methodsOf`, `recoverMountPath`, `extractSchema`.
+  - `autoExpose.ts`: `autoExpose(app, options?)` factory — `AutoExposeHandle` with lazy+memoized `tools()` and `refresh()`.
+  - `src/index.ts`: public exports barrel.
 
-- `apps/dev-sandbox/src/express-main.ts` — nuevo entry-point de smoke (no modifica `main.ts` existente).
+- `apps/dev-sandbox/src/express-main.ts` — new smoke entry-point (does not modify the existing `main.ts`).
 
-### 2.2. Sin cambios en `@mcp-auto-expose/core`
+### 2.2. No changes to `@mcp-auto-expose/core`
 
-`RouteDescriptor.framework: "fastify" | "express"` ya soporta Express en `packages/core/src/types.ts:26-31`. `RouteSchema` ya cubre `{body?, querystring?, params?, description?, summary?, tags?, hide?}`. `resolveTool` y `ToolRegistry` se reutilizan sin modificación.
+`RouteDescriptor.framework: "fastify" | "express"` already supports Express in `packages/core/src/types.ts:26-31`. `RouteSchema` already covers `{body?, querystring?, params?, description?, summary?, tags?, hide?}`. `resolveTool` and `ToolRegistry` are reused without modification.
 
-## 3. Diseño técnico detallado
+## 3. Detailed technical design
 
-### 3.1. API pública de `@mcp-auto-expose/express`
+### 3.1. Public API of `@mcp-auto-expose/express`
 
 ```ts
 // packages/express/src/index.ts
@@ -67,29 +67,29 @@ import type { MCPTool } from "@mcp-auto-expose/core";
 export interface AutoExposeOptions {
   /**
    * Default: true (opt-in).
-   * Solo rutas con mcpExpose() son expuestas.
-   * NOTA: diverge de Fastify (default false) por postura de seguridad —
-   * Express es frecuente en apps legacy donde la exposición accidental de
-   * endpoints admin es un riesgo concreto.
+   * Only routes with mcpExpose() are exposed.
+   * NOTE: diverges from Fastify (default false) for security posture —
+   * Express is common in legacy apps where accidental exposure of
+   * admin endpoints is a concrete risk.
    */
   strictSchema?: boolean;
   /**
    * Default: false (lazy).
-   * Si true, el walker corre en autoExpose() en lugar de en tools().
-   * Útil para detectar errores de configuración en bootstrap.
+   * If true, the walker runs in autoExpose() instead of in tools().
+   * Useful for detecting configuration errors at bootstrap.
    */
   eager?: boolean;
   /**
-   * Prefijo URL a stripear de los descriptores antes de la generación de nombre.
-   * Ej: basePath: "/api" → GET /api/users se registra como GET /users → list_users.
+   * URL prefix to strip from descriptors before name generation.
+   * E.g.: basePath: "/api" → GET /api/users is registered as GET /users → list_users.
    */
   basePath?: string;
 }
 
 export interface AutoExposeHandle {
-  /** Walk lazy + memoized. Idempotente. */
+  /** Lazy + memoized walk. Idempotent. */
   tools(): MCPTool[];
-  /** Re-walk forzado: limpia ToolRegistry y reconstruye el catálogo. */
+  /** Forced re-walk: clears ToolRegistry and rebuilds the catalog. */
   refresh(): MCPTool[];
 }
 
@@ -99,7 +99,7 @@ export type { McpExposeSpec } from "./mcpExpose.js";
 export { MCP_EXPOSE_SYMBOL } from "./mcpExpose.js";
 ```
 
-**Uso esperado (desde `apps/dev-sandbox/src/express-main.ts`):**
+**Expected usage (from `apps/dev-sandbox/src/express-main.ts`):**
 
 ```ts
 import express from "express";
@@ -112,7 +112,7 @@ app.use(express.json());
 
 const router = express.Router();
 
-router.get("/users", mcpExpose({ description: "Listar usuarios" }), async (_req, res) =>
+router.get("/users", mcpExpose({ description: "List users" }), async (_req, res) =>
   res.json([]),
 );
 
@@ -120,7 +120,7 @@ router.get(
   "/users/:id",
   mcpExpose({
     params: z.object({ id: z.string() }),
-    description: "Obtener usuario por id",
+    description: "Get user by id",
   }),
   async (_req, res) => res.json({}),
 );
@@ -129,7 +129,7 @@ router.post(
   "/users",
   mcpExpose({
     body: z.object({ name: z.string(), email: z.string() }),
-    description: "Crear usuario",
+    description: "Create user",
   }),
   async (_req, res) => res.status(201).json({}),
 );
@@ -140,7 +140,7 @@ const handle = autoExpose(app, { strictSchema: true });
 await startStdio({ name: "express-sandbox", version: "0.0.0", tools: handle.tools() });
 ```
 
-### 3.2. `mcpExpose` — middleware decorador (pure metadata carrier)
+### 3.2. `mcpExpose` — decorator middleware (pure metadata carrier)
 
 ```ts
 // packages/express/src/mcpExpose.ts
@@ -154,37 +154,37 @@ export const MCP_EXPOSE_SYMBOL: unique symbol = Symbol.for("mcp-auto-expose.sche
 export interface McpExposeSpec {
   body?: z.ZodTypeAny;
   /**
-   * Nombre Express-idiomático para query parameters.
-   * Se mapea internamente a RouteSchema.querystring (contrato de core.flattenSchema).
+   * Express-idiomatic name for query parameters.
+   * Mapped internally to RouteSchema.querystring (core.flattenSchema contract).
    */
   query?: z.ZodTypeAny;
   params?: z.ZodTypeAny;
   description?: string;
   summary?: string;
   tags?: string[];
-  /** Si true, la ruta se omite del catálogo MCP (opt-out por ruta). */
+  /** If true, the route is omitted from the MCP catalog (per-route opt-out). */
   hide?: boolean;
 }
 
 export function mcpExpose(spec: McpExposeSpec): RequestHandler {
-  const routeSchema = specToRouteSchema(spec); // conversión en registration time
-  const middleware: RequestHandler = (_req, _res, next) => next(); // no-op en runtime
+  const routeSchema = specToRouteSchema(spec); // conversion at registration time
+  const middleware: RequestHandler = (_req, _res, next) => next(); // no-op at runtime
   (middleware as unknown as Record<symbol, RouteSchema>)[MCP_EXPOSE_SYMBOL] = routeSchema;
   return middleware;
 }
 ```
 
-**Decisiones y justificaciones:**
+**Decisions and rationale:**
 
-- **`Symbol.for("mcp-auto-expose.schema")`**: el registro global de símbolos garantiza que la misma key sea reconocida incluso si el paquete aparece dos veces en el árbol de módulos (dual-bundle, npm dedupe quirks). Un WeakMap exportado fallaría silenciosamente en ese escenario. Una string key colisionaría con código userland. El símbolo es no enumerable en `Object.keys` y `JSON.stringify`, evitando leaks en logs.
+- **`Symbol.for("mcp-auto-expose.schema")`**: the global symbol registry guarantees the same key is recognized even if the package appears twice in the module tree (dual-bundle, npm dedupe quirks). An exported WeakMap would fail silently in that scenario. A string key would collide with user code. The symbol is non-enumerable in `Object.keys` and `JSON.stringify`, avoiding leaks in logs.
 
-- **`next()` puro**: cero coste en hot path. La validación HTTP queda al usuario (zod-express-middleware, `.parse()` manual). No hay flag `validate` en esta fase — si se añade en el futuro, es retrocompatible.
+- **Pure `next()`**: zero cost in hot path. HTTP validation is left to the user (zod-express-middleware, manual `.parse()`). There is no `validate` flag in this phase — if added in the future, it is backwards compatible.
 
-- **Tipo `RequestHandler`**: el middleware retornado type-checks sin casts para el usuario en `app.get(path, mcpExpose({...}), handler)`.
+- **Type `RequestHandler`**: the returned middleware type-checks without casts for the user in `app.get(path, mcpExpose({...}), handler)`.
 
-- **Conversión en registration time**: `specToRouteSchema` (que llama `zodToJsonSchema`) corre una sola vez cuando el usuario llama `mcpExpose(...)`, no en cada request ni en el walk. El resultado se almacena en el símbolo del middleware.
+- **Conversion at registration time**: `specToRouteSchema` (which calls `zodToJsonSchema`) runs once when the user calls `mcpExpose(...)`, not on each request or during the walk. The result is stored in the middleware's symbol.
 
-### 3.3. Conversión Zod → JSON Schema Draft 7 (`zodConvert.ts`)
+### 3.3. Zod → JSON Schema Draft 7 conversion (`zodConvert.ts`)
 
 ```ts
 // packages/express/src/zodConvert.ts
@@ -203,9 +203,9 @@ function convertCached(schema: z.ZodTypeAny): Record<string, unknown> {
   let out: Record<string, unknown>;
   try {
     out = zodToJsonSchema(schema, {
-      target: "jsonSchema7", // MCP Tool.inputSchema requiere Draft 7
-      $refStrategy: "none", // core.flattenSchema dropea $ref; inlinear evita pérdida
-      // NO pasar name: dispara wrapper $ref/#/definitions que sería droppeado
+      target: "jsonSchema7", // MCP Tool.inputSchema requires Draft 7
+      $refStrategy: "none", // core.flattenSchema drops $ref; inlining avoids data loss
+      // Do NOT pass name: triggers $ref/#/definitions wrapper that would be dropped
     }) as Record<string, unknown>;
   } catch (e) {
     warn("zod-convert-failed", { message: String(e) });
@@ -213,7 +213,7 @@ function convertCached(schema: z.ZodTypeAny): Record<string, unknown> {
   }
 
   if (JSON.stringify(out).includes('"$ref"')) {
-    warn("schema-has-ref", { hint: "usa z.object plano; schemas recursivos se simplifican a {}" });
+    warn("schema-has-ref", { hint: "use plain z.object; recursive schemas are simplified to {}" });
   }
 
   conversionCache.set(schema, out);
@@ -233,29 +233,29 @@ export function specToRouteSchema(spec: McpExposeSpec): RouteSchema {
 }
 ```
 
-**Justificación de las opciones de conversión:**
+**Rationale for conversion options:**
 
-| Opción         | Valor           | Por qué                                                                                                                     |
-| -------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `target`       | `"jsonSchema7"` | Clientes MCP esperan Draft 7; Draft 2019-09 incluye `unevaluatedProperties` y otros constructs no universalmente soportados |
-| `$refStrategy` | `"none"`        | `core/flattenSchema.ts:30-40` dropea propiedades con `$ref`; `"none"` inlinea todo eliminando la pérdida                    |
-| `name`         | no pasar        | Dispara wrapper `$ref/#/definitions/<name>` que `flattenSchema` dropearía completo                                          |
+| Option         | Value           | Why                                                                                                                      |
+| -------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `target`       | `"jsonSchema7"` | MCP clients expect Draft 7; Draft 2019-09 includes `unevaluatedProperties` and other constructs not universally supported |
+| `$refStrategy` | `"none"`        | `core/flattenSchema.ts:30-40` drops properties with `$ref`; `"none"` inlines everything eliminating data loss             |
+| `name`         | not passed      | Triggers `$ref/#/definitions/<name>` wrapper that `flattenSchema` would drop entirely                                    |
 
-**Comportamiento de edge cases:**
+**Edge case behavior:**
 
-| Input Zod                      | Output JSON Schema                                                             | Comportamiento en `core.flattenSchema`                   |
+| Zod Input                      | JSON Schema Output                                                             | Behavior in `core.flattenSchema`                         |
 | ------------------------------ | ------------------------------------------------------------------------------ | -------------------------------------------------------- |
-| `z.object({ id: z.string() })` | `{ type: "object", properties: { id: { type: "string" } }, required: ["id"] }` | Aplanado normal en `inputSchema`                         |
-| `z.string()` (body primitivo)  | `{ type: "string" }`                                                           | Envuelto bajo `properties.body` (flattenSchema.ts:15-18) |
-| `z.array(z.number())`          | `{ type: "array", items: { type: "number" } }`                                 | Envuelto bajo source key                                 |
-| `z.discriminatedUnion(...)`    | `{ anyOf: [...] }` (sin `type: "object"`)                                      | Envuelto; warning en stderr                              |
-| `z.lazy(...)` con ciclo        | `{}` (any)                                                                     | Acepta cualquier cosa; warning                           |
+| `z.object({ id: z.string() })` | `{ type: "object", properties: { id: { type: "string" } }, required: ["id"] }` | Normal flattening into `inputSchema`                     |
+| `z.string()` (primitive body)  | `{ type: "string" }`                                                           | Wrapped under `properties.body` (flattenSchema.ts:15-18) |
+| `z.array(z.number())`          | `{ type: "array", items: { type: "number" } }`                                 | Wrapped under source key                                 |
+| `z.discriminatedUnion(...)`    | `{ anyOf: [...] }` (without `type: "object"`)                                  | Wrapped; warning in stderr                               |
+| `z.lazy(...)` with cycle       | `{}` (any)                                                                     | Accepts anything; warning                                |
 
-**Memoización**: WeakMap keyed por identidad del Zod schema. El mismo `z.object({...})` usado en 50 rutas se convierte una sola vez. Correctamente identity-based: dos instancias con misma forma no comparten cache (comportamiento correcto).
+**Memoization**: WeakMap keyed by Zod schema identity. The same `z.object({...})` used in 50 routes is converted once. Identity-based: two instances with the same shape do not share cache (correct behavior).
 
-### 3.4. Walker recursivo — `walkRoutes.ts`
+### 3.4. Recursive walker — `walkRoutes.ts`
 
-#### Tipos internos (no exportados)
+#### Internal types (not exported)
 
 ```ts
 type ExpressLayer = {
@@ -267,7 +267,7 @@ type ExpressLayer = {
   };
   handle?: { stack?: ExpressLayer[] } & ((...a: unknown[]) => void);
   regexp?: RegExp & { fast_slash?: boolean };
-  path?: string; // Express 5 en layers de sub-router montado
+  path?: string; // Express 5 in mounted sub-router layers
 };
 ```
 
@@ -287,9 +287,9 @@ function getRootStack(app: Express): ExpressLayer[] {
     _router?: { stack: ExpressLayer[] };
     lazyrouter?: () => void;
   };
-  if (a.router?.stack) return a.router.stack; // Express 5: getter lazy público
-  if (typeof a.lazyrouter === "function") a.lazyrouter(); // Express 4: forzar lazy init
-  if (a._router?.stack) return a._router.stack; // Express 4: después de init
+  if (a.router?.stack) return a.router.stack; // Express 5: public lazy getter
+  if (typeof a.lazyrouter === "function") a.lazyrouter(); // Express 4: force lazy init
+  if (a._router?.stack) return a._router.stack; // Express 4: after init
   warn("empty-router", {});
   return [];
 }
@@ -303,7 +303,7 @@ export function walkRoutes(app: Express, opts: AutoExposeOptions): RouteDescript
 }
 ```
 
-#### Recursión
+#### Recursion
 
 ```ts
 function walk(
@@ -315,7 +315,7 @@ function walk(
 ): void {
   for (const layer of stack) {
     if (layer.route) {
-      // Terminal: ruta registrada directamente en esta capa
+      // Terminal: route registered directly in this layer
       const paths = Array.isArray(layer.route.path) ? layer.route.path : [layer.route.path];
 
       for (const p of paths) {
@@ -333,17 +333,17 @@ function walk(
           const schema = extractSchema(layer.route.stack);
 
           if (opts.strictSchema !== false && !schema) {
-            // strictSchema default: true (diferente a Fastify)
+            // strictSchema default: true (different from Fastify)
             warn("missing-schema-strict", { verb, url });
             continue;
           }
-          if (schema?.hide) continue; // opt-out silencioso
+          if (schema?.hide) continue; // silent opt-out
 
           out.push({ framework: "express", method: verb, url, schema });
         }
       }
     } else if (layer.name === "router" && layer.handle) {
-      // Sub-router: descender recursivamente
+      // Sub-router: descend recursively
       const subStack = (layer.handle as { stack?: ExpressLayer[] }).stack;
       if (!subStack) {
         warn("malformed-router-layer", { mountPath });
@@ -353,22 +353,22 @@ function walk(
       const childMount = recoverMountPath(layer, mountPath);
       walk(subStack, joinPath(mountPath, childMount), out, seen, opts);
     }
-    // Cualquier otro middleware (body-parser, cors, etc.) → ignorar
+    // Any other middleware (body-parser, cors, etc.) → ignore
   }
 }
 ```
 
-#### Sub-rutinas
+#### Sub-routines
 
 ```ts
-// Colapsa dobles slashes, preserva :param y wildcards Express verbatim.
-// No añade trailing slash (excepto si el resultado es exactamente "/").
+// Collapses double slashes, preserves :param and Express wildcards verbatim.
+// Does not add trailing slash (except when result is exactly "/").
 function joinPath(parent: string, child: string): string {
   const raw = `${parent}/${child}`.replace(/\/+/g, "/");
   return raw.length > 1 ? raw.replace(/\/$/, "") : raw;
 }
 
-// Extrae verbos HTTP del mapa methods. Filtra _all y verbos fuera del union HTTPMethod.
+// Extracts HTTP verbs from the methods map. Filters _all and verbs outside HTTPMethod union.
 function methodsOf(methods: Record<string, boolean>, url: string): HTTPMethod[] {
   const VALID: ReadonlySet<string> = new Set([
     "GET",
@@ -389,16 +389,16 @@ function methodsOf(methods: Record<string, boolean>, url: string): HTTPMethod[] 
     });
 }
 
-// Recupera el prefijo de montaje de una layer de tipo router.
-// Express 5: layer.path; Express 4: regex parsing (patrón canónico).
+// Recovers the mount prefix from a router-type layer.
+// Express 5: layer.path; Express 4: regex parsing (canonical pattern).
 function recoverMountPath(layer: ExpressLayer, parentMount: string): string {
   if (layer.path && typeof layer.path === "string") return layer.path; // Express 5
 
   const regexp = layer.regexp;
   if (!regexp) return "";
-  if (regexp.fast_slash) return ""; // montado en "/"
+  if (regexp.fast_slash) return ""; // mounted at "/"
 
-  // Patrón canónico (express-list-endpoints):
+  // Canonical pattern (express-list-endpoints):
   const match = /^\^\\\/(?:\(\?:\(\[\^\\\/]\+\?\)\))?(.*?)\\\/\?\(\?=\\\/\|\$\)/i.exec(
     regexp.source,
   );
@@ -407,10 +407,10 @@ function recoverMountPath(layer: ExpressLayer, parentMount: string): string {
   }
 
   warn("regex-parse-failed", { source: regexp.source, parentMount });
-  return ""; // graceful degradation: descendants surfacen bajo mountPath padre
+  return ""; // graceful degradation: descendants surface under parent mountPath
 }
 
-// Busca el primer middleware tagged con MCP_EXPOSE_SYMBOL en el stack de la ruta.
+// Finds the first middleware tagged with MCP_EXPOSE_SYMBOL in the route stack.
 const SCHEMA_KEY = MCP_EXPOSE_SYMBOL;
 
 function extractSchema(routeStack: Array<{ handle: unknown }>): RouteSchema | undefined {
@@ -430,15 +430,15 @@ function extractSchema(routeStack: Array<{ handle: unknown }>): RouteSchema | un
   }
 
   if (extra > 0) {
-    warn("multiple-mcpExpose", { count: extra + 1, hint: "se usa el primero" });
+    warn("multiple-mcpExpose", { count: extra + 1, hint: "first one is used" });
   }
   return found;
 }
 ```
 
-**Política HEAD**: Express (4 y 5) **no** auto-genera HEAD para rutas GET (Fastify sí, por eso filtra HEAD en `adaptRouteOptions.ts:8-10`). El adaptador Express incluye HEAD si el usuario lo registra explícitamente. Filtra solo `_all`.
+**HEAD policy**: Express (4 and 5) does **not** auto-generate HEAD for GET routes (Fastify does, which is why it filters HEAD in `adaptRouteOptions.ts:8-10`). The Express adapter includes HEAD if the user registers it explicitly. Only filters `_all`.
 
-**Deduplicación**: el walker marca `seen` por `METHOD url` y emite warning `duplicate`. `ToolRegistry` en core mantiene su sufijo `_2/_3` solo para colisiones de **nombre tool** (distintas URLs que producen el mismo snake_case — safety net, no el mecanismo primario de dedup).
+**Deduplication**: the walker marks `seen` by `METHOD url` and emits a `duplicate` warning. `ToolRegistry` in core maintains its `_2/_3` suffix only for **tool name** collisions (different URLs that produce the same snake_case — safety net, not the primary dedup mechanism).
 
 ### 3.5. `autoExpose` factory
 
@@ -450,7 +450,7 @@ import { ToolRegistry, resolveTool } from "@mcp-auto-expose/core";
 import { walkRoutes } from "./walkRoutes.js";
 
 export interface AutoExposeOptions {
-  strictSchema?: boolean; // default: true (ver §3.1)
+  strictSchema?: boolean; // default: true (see §3.1)
   eager?: boolean; // default: false
   basePath?: string;
 }
@@ -491,13 +491,13 @@ export function autoExpose(app: Express, options: AutoExposeOptions = {}): AutoE
 }
 ```
 
-**Timing y memoización:**
+**Timing and memoization:**
 
-- `eager: false` (default): walk perezoso en primera llamada a `tools()`, memoizado. No hay `app.ready()` en Express; el marcador natural es el usuario invocando `tools()` justo antes de `startStdio`.
-- `eager: true`: walk en `autoExpose()` para detectar problemas de configuración en bootstrap.
-- `refresh()`: para tests y escenarios hot-reload donde se añaden rutas después de la primera llamada.
+- `eager: false` (default): lazy walk on first call to `tools()`, memoized. There is no `app.ready()` in Express; the natural marker is the user calling `tools()` just before `startStdio`.
+- `eager: true`: walk in `autoExpose()` to detect configuration problems at bootstrap.
+- `refresh()`: for tests and hot-reload scenarios where routes are added after the first call.
 
-### 3.6. Helper de observabilidad — `warn.ts`
+### 3.6. Observability helper — `warn.ts`
 
 ```ts
 // packages/express/src/warn.ts
@@ -509,39 +509,39 @@ export function warn(code: string, ctx: Record<string, unknown>): void {
 }
 ```
 
-**Catálogo de warnings:**
+**Warning catalog:**
 
-| Código                   | Trigger                                               | Contexto emitido          |
+| Code                     | Trigger                                               | Emitted context           |
 | ------------------------ | ----------------------------------------------------- | ------------------------- |
-| `missing-schema-strict`  | `strictSchema:true` y ruta sin `mcpExpose` tagged     | `{ verb, url }`           |
-| `regex-parse-failed`     | Express 4: regex de mount no matchea patrón canónico  | `{ source, parentMount }` |
-| `unknown-method`         | Verbo fuera del union `HTTPMethod` (e.g., `PROPFIND`) | `{ verb, url }`           |
-| `multiple-mcpExpose`     | Más de un middleware tagged en la misma ruta          | `{ count, hint }`         |
-| `duplicate`              | Mismo `METHOD url` producido dos veces en el walk     | `{ verb, url }`           |
-| `malformed-router-layer` | `layer.name === "router"` sin `handle.stack`          | `{ mountPath }`           |
-| `empty-router`           | Stack raíz vacío (app sin rutas)                      | `{}`                      |
-| `zod-convert-failed`     | `zodToJsonSchema` lanza excepción                     | `{ message }`             |
-| `schema-has-ref`         | Output de `zodToJsonSchema` contiene `$ref`           | `{ hint }`                |
+| `missing-schema-strict`  | `strictSchema:true` and route without `mcpExpose` tag | `{ verb, url }`           |
+| `regex-parse-failed`     | Express 4: mount regex does not match canonical pattern | `{ source, parentMount }` |
+| `unknown-method`         | Verb outside `HTTPMethod` union (e.g., `PROPFIND`)    | `{ verb, url }`           |
+| `multiple-mcpExpose`     | More than one tagged middleware on the same route     | `{ count, hint }`         |
+| `duplicate`              | Same `METHOD url` produced twice during walk          | `{ verb, url }`           |
+| `malformed-router-layer` | `layer.name === "router"` without `handle.stack`      | `{ mountPath }`           |
+| `empty-router`           | Empty root stack (app with no routes)                 | `{}`                      |
+| `zod-convert-failed`     | `zodToJsonSchema` throws an exception                 | `{ message }`             |
+| `schema-has-ref`         | `zodToJsonSchema` output contains `$ref`              | `{ hint }`                |
 
-Todos los warnings tienen el prefijo único `[mcp-auto-expose:express]` para grep rápido en producción.
+All warnings have the unique prefix `[mcp-auto-expose:express]` for fast grep in production.
 
-### 3.7. Matriz de compatibilidad Express 4 vs 5
+### 3.7. Express 4 vs 5 compatibility matrix
 
-| Feature                  | Express 4                                  | Express 5                             | Estrategia del adaptador                               |
-| ------------------------ | ------------------------------------------ | ------------------------------------- | ------------------------------------------------------ |
-| Router access            | `app._router` (undefined hasta primer use) | `app.router` getter lazy público      | `app.router` → `lazyrouter?.()` → `app._router` → `[]` |
-| Lazy router init         | `app.lazyrouter()` (semi-público)          | No necesario (`app.router` lo activa) | Llamar `lazyrouter` solo si `app.router` ausente       |
-| Mount path en sub-router | solo `layer.regexp`                        | `layer.path` poblado                  | Preferir `layer.path`; fallback regex-parsing canónico |
-| HEAD auto-generación     | No                                         | No                                    | Emitir HEAD solo si registrado explícitamente          |
-| Wildcard                 | `'/users/*'` (sin nombre)                  | `'/users/*splat'` (nombre requerido)  | Passthrough verbatim                                   |
-| Optional segments        | `:id?`                                     | `'{/:id}'` brace syntax               | Passthrough verbatim                                   |
-| `app.all(...)`           | `methods._all === true` + verbos           | Igual                                 | Filtrar `_all` en `methodsOf`                          |
-| Array de paths           | `app.get(['/a', '/b'], ...)`               | Igual                                 | `Array.isArray(layer.route.path)`                      |
-| Schema nativo            | Ninguno                                    | Ninguno                               | `mcpExpose` inyectado por el usuario                   |
+| Feature                  | Express 4                                   | Express 5                             | Adapter strategy                                        |
+| ------------------------ | ------------------------------------------- | ------------------------------------- | ------------------------------------------------------- |
+| Router access            | `app._router` (undefined until first use)   | `app.router` public lazy getter       | `app.router` → `lazyrouter?.()` → `app._router` → `[]` |
+| Lazy router init         | `app.lazyrouter()` (semi-public)            | Not needed (`app.router` activates it)| Call `lazyrouter` only if `app.router` is absent        |
+| Mount path in sub-router | only `layer.regexp`                         | `layer.path` populated                | Prefer `layer.path`; fallback canonical regex-parsing   |
+| HEAD auto-generation     | No                                          | No                                    | Emit HEAD only if explicitly registered                 |
+| Wildcard                 | `'/users/*'` (unnamed)                      | `'/users/*splat'` (name required)     | Passthrough verbatim                                    |
+| Optional segments        | `:id?`                                      | `'{/:id}'` brace syntax               | Passthrough verbatim                                    |
+| `app.all(...)`           | `methods._all === true` + verbs             | Same                                  | Filter `_all` in `methodsOf`                            |
+| Array of paths           | `app.get(['/a', '/b'], ...)`                | Same                                  | `Array.isArray(layer.route.path)`                       |
+| Native schema            | None                                        | None                                  | `mcpExpose` injected by user                            |
 
-`peerDependencies: { "express": "^4 || ^5" }`. El suite de tests valida con Express 5 en devDependencies. Los fallback paths de Express 4 se verifican con stacks mockeados (ver §6, Tarea 4).
+`peerDependencies: { "express": "^4 || ^5" }`. The test suite validates with Express 5 in devDependencies. Express 4 fallback paths are verified with mocked stacks (see §6, Task 4).
 
-## 4. Estructura de archivos
+## 4. File structure
 
 ```
 packages/express/
@@ -552,18 +552,18 @@ packages/express/
 └── src/
     ├── index.ts              # barrel: autoExpose, mcpExpose, types, MCP_EXPOSE_SYMBOL
     ├── autoExpose.ts         # factory + AutoExposeHandle (lazy + memoized + refresh)
-    ├── autoExpose.test.ts    # integración con Express real (v5)
+    ├── autoExpose.test.ts    # integration with real Express (v5)
     ├── mcpExpose.ts          # mcpExpose, MCP_EXPOSE_SYMBOL, specToRouteSchema
     ├── mcpExpose.test.ts
-    ├── walkRoutes.ts         # walker recursivo + helpers internos
-    ├── walkRoutes.test.ts    # tests unitarios con stacks mockeados
+    ├── walkRoutes.ts         # recursive walker + internal helpers
+    ├── walkRoutes.test.ts    # unit tests with mocked stacks
     ├── zodConvert.ts         # convertCached + WeakMap cache
     ├── zodConvert.test.ts
-    └── warn.ts               # helper único de stderr logging
+    └── warn.ts               # single stderr logging helper
 
 apps/dev-sandbox/
 └── src/
-    └── express-main.ts       # NUEVO — smoke Express (no toca main.ts de Fastify)
+    └── express-main.ts       # NEW — Express smoke (does not touch Fastify main.ts)
 ```
 
 ## 5. `packages/express/package.json`
@@ -611,123 +611,123 @@ apps/dev-sandbox/
 }
 ```
 
-**Nota sobre el script `test`**: usa `src/*.test.ts` (glob plano, maxdepth 1) en lugar de la substitución de comando de `packages/fastify`, para mayor portabilidad. Ajustar si se detecta incompatibilidad con la versión de Node en CI.
+**Note on the `test` script**: uses `src/*.test.ts` (flat glob, maxdepth 1) instead of the command substitution used in `packages/fastify`, for better portability. Adjust if incompatibility is detected with the Node version in CI.
 
-## 6. Plan de tareas (TDD obligatorio: rojo → verde → commit)
+## 6. Task plan (TDD required: red → green → commit)
 
-> Cada tarea sigue: tests rojos → implementación → tests verdes → commit. Logs siempre a `stderr`.
+> Each task follows: red tests → implementation → green tests → commit. Logs always to `stderr`.
 
-### Tarea 1 — Andamiar `packages/express`
+### Task 1 — Scaffold `packages/express`
 
-- 1.1. Crear `package.json`, `tsconfig.json`, `eslint.config.mjs`, `src/index.ts` vacío.
-  - `tsconfig.json`: extender `@repo/typescript-config/base.json`, `outDir: "dist"`, `rootDir: "src"`.
+- 1.1. Create `package.json`, `tsconfig.json`, `eslint.config.mjs`, empty `src/index.ts`.
+  - `tsconfig.json`: extend `@repo/typescript-config/base.json`, `outDir: "dist"`, `rootDir: "src"`.
   - `eslint.config.mjs`: `import { config } from "@repo/eslint-config/base"; export default config;`
-- 1.2. `pnpm install` → resuelve `express`, `@types/express`, `zod`, `zod-to-json-schema` como deps directas; actualiza lockfile.
-- 1.3. `pnpm --filter @mcp-auto-expose/express check-types` verde.
+- 1.2. `pnpm install` → resolves `express`, `@types/express`, `zod`, `zod-to-json-schema` as direct deps; updates lockfile.
+- 1.3. `pnpm --filter @mcp-auto-expose/express check-types` green.
 - 1.4. Commit: `chore(express): scaffold @mcp-auto-expose/express package`.
 
-### Tarea 2 — `zodConvert` + `warn`
+### Task 2 — `zodConvert` + `warn`
 
-- 2.1. Crear `src/warn.ts` (no requiere test unitario — trivial `process.stderr.write`).
-- 2.2. Tests rojos (`zodConvert.test.ts`):
-  - `z.object({ id: z.string() })` → produce `{ type: "object", properties: { id: { type: "string" } }, required: ["id"] }` (verificar subset de propiedades).
-  - `z.string()` → produce `{ type: "string" }`.
-  - Misma instancia de `z.object` usada dos veces → segunda llamada retorna el mismo objeto (cache hit) — verificar con `Object.is`.
-  - `specToRouteSchema({ query: z.string() })` → `.querystring` poblado, `.body` undefined.
-  - `specToRouteSchema({ tags: ["t1"] })` → `.tags` es copia (`!Object.is`).
-- 2.3. Implementar `zodConvert.ts` con `convertCached` y `specToRouteSchema`.
-- 2.4. Verde + commit: `feat(express): zod-to-json-schema Draft 7 converter with WeakMap cache`.
+- 2.1. Create `src/warn.ts` (no unit test required — trivial `process.stderr.write`).
+- 2.2. Red tests (`zodConvert.test.ts`):
+  - `z.object({ id: z.string() })` → produces `{ type: "object", properties: { id: { type: "string" } }, required: ["id"] }` (verify property subset).
+  - `z.string()` → produces `{ type: "string" }`.
+  - Same `z.object` instance used twice → second call returns the same object (cache hit) — verify with `Object.is`.
+  - `specToRouteSchema({ query: z.string() })` → `.querystring` populated, `.body` undefined.
+  - `specToRouteSchema({ tags: ["t1"] })` → `.tags` is a copy (`!Object.is`).
+- 2.3. Implement `zodConvert.ts` with `convertCached` and `specToRouteSchema`.
+- 2.4. Green + commit: `feat(express): zod-to-json-schema Draft 7 converter with WeakMap cache`.
 
-### Tarea 3 — `mcpExpose` middleware
+### Task 3 — `mcpExpose` middleware
 
-- 3.1. Tests rojos (`mcpExpose.test.ts`):
-  - El valor retornado por `mcpExpose({})` es una función.
-  - Llamar al middleware invoca `next()` una vez.
-  - `(mcpExpose({}) as any)[MCP_EXPOSE_SYMBOL]` retorna un objeto (no undefined).
-  - `mcpExpose({ query: z.string() })[MCP_EXPOSE_SYMBOL].querystring` está poblado.
+- 3.1. Red tests (`mcpExpose.test.ts`):
+  - The value returned by `mcpExpose({})` is a function.
+  - Calling the middleware invokes `next()` once.
+  - `(mcpExpose({}) as any)[MCP_EXPOSE_SYMBOL]` returns an object (not undefined).
+  - `mcpExpose({ query: z.string() })[MCP_EXPOSE_SYMBOL].querystring` is populated.
   - `mcpExpose({ hide: true })[MCP_EXPOSE_SYMBOL].hide === true`.
-  - `mcpExpose({ tags: ["t1"] })[MCP_EXPOSE_SYMBOL].tags` es copia defensiva.
-  - Compile-only: `app.get(path, mcpExpose({}), handler)` type-checks sin cast.
-- 3.2. Implementar `mcpExpose.ts`.
-- 3.3. Verde + commit: `feat(express): mcpExpose decorator middleware (pure metadata carrier)`.
+  - `mcpExpose({ tags: ["t1"] })[MCP_EXPOSE_SYMBOL].tags` is a defensive copy.
+  - Compile-only: `app.get(path, mcpExpose({}), handler)` type-checks without cast.
+- 3.2. Implement `mcpExpose.ts`.
+- 3.3. Green + commit: `feat(express): mcpExpose decorator middleware (pure metadata carrier)`.
 
-### Tarea 4 — `walkRoutes` y helpers
+### Task 4 — `walkRoutes` and helpers
 
-- 4.1. Tests rojos (`walkRoutes.test.ts`) construyendo stacks Express manuales (sin servidor):
-  - Ruta terminal simple: `[{ route: { path: "/api/users", methods: { get: true }, stack: [] } }]` → 1 descriptor `GET /api/users`.
-  - Sub-router montado (Express 5): layer con `name: "router"`, `path: "/api"`, `handle.stack` con ruta `/users` → descriptor `GET /api/users`.
-  - Sub-router montado (Express 4 fallback): layer sin `path`, con `regexp.source` matcheable → mount `/api` recuperado.
-  - `methods._all === true` junto con verbos → `_all` filtrado, verbos emitidos.
-  - Verbo `PROPFIND` → warning `unknown-method`, descriptor omitido.
-  - Mismo `GET /api/users` dos veces → warning `duplicate`, segundo omitido.
-  - `extractSchema`: ruta con un middleware tagged → `RouteSchema` retornada.
-  - `extractSchema`: ruta con dos middlewares tagged → warning `multiple-mcpExpose`, primero retornado.
-  - `extractSchema`: sin middleware tagged → `undefined`.
-  - `opts.strictSchema: true` + schema undefined → warning `missing-schema-strict`, descriptor omitido.
-  - `opts.strictSchema: false` + schema undefined → descriptor emitido.
-  - `hide: true` en RouteSchema → descriptor omitido silenciosamente.
-  - Array de paths: `route.path = ["/a", "/b"]` → 2 descriptores.
-  - `basePath: "/api"` → stripeado del mountPath inicial.
-- 4.2. Implementar `walkRoutes.ts` con todos los helpers internos.
-- 4.3. Verde + commit: `feat(express): recursive route walker with Express 4/5 compat`.
+- 4.1. Red tests (`walkRoutes.test.ts`) building manual Express stacks (no HTTP server):
+  - Simple terminal route: `[{ route: { path: "/api/users", methods: { get: true }, stack: [] } }]` → 1 descriptor `GET /api/users`.
+  - Mounted sub-router (Express 5): layer with `name: "router"`, `path: "/api"`, `handle.stack` with route `/users` → descriptor `GET /api/users`.
+  - Mounted sub-router (Express 4 fallback): layer without `path`, with matchable `regexp.source` → mount `/api` recovered.
+  - `methods._all === true` alongside verbs → `_all` filtered, verbs emitted.
+  - Verb `PROPFIND` → warning `unknown-method`, descriptor omitted.
+  - Same `GET /api/users` twice → warning `duplicate`, second one omitted.
+  - `extractSchema`: route with one tagged middleware → `RouteSchema` returned.
+  - `extractSchema`: route with two tagged middlewares → warning `multiple-mcpExpose`, first returned.
+  - `extractSchema`: no tagged middleware → `undefined`.
+  - `opts.strictSchema: true` + undefined schema → warning `missing-schema-strict`, descriptor omitted.
+  - `opts.strictSchema: false` + undefined schema → descriptor emitted.
+  - `hide: true` in RouteSchema → descriptor omitted silently.
+  - Array of paths: `route.path = ["/a", "/b"]` → 2 descriptors.
+  - `basePath: "/api"` → stripped from initial mountPath.
+- 4.2. Implement `walkRoutes.ts` with all internal helpers.
+- 4.3. Green + commit: `feat(express): recursive route walker with Express 4/5 compat`.
 
-### Tarea 5 — `autoExpose` factory (integración con Express real)
+### Task 5 — `autoExpose` factory (integration with real Express)
 
-- 5.1. Tests rojos (`autoExpose.test.ts`) con Express **real** (v5), sin servidor HTTP:
-  - App con 3 rutas CRUD vía Router + `mcpExpose`, `strictSchema:true` → `tools()` retorna exactamente 3 `MCPTool` con names `list_users`, `get_users_by_id`, `create_users`.
+- 5.1. Red tests (`autoExpose.test.ts`) with real Express **v5**, no HTTP server:
+  - App with 3 CRUD routes via Router + `mcpExpose`, `strictSchema:true` → `tools()` returns exactly 3 `MCPTool` with names `list_users`, `get_users_by_id`, `create_users`.
   - `get_users_by_id.inputSchema.properties.id.type === "string"`, `required: ["id"]`.
-  - `create_users.inputSchema.properties.name` y `.email` presentes, `required: ["name", "email"]`.
-  - `tools()` segunda llamada retorna el mismo objeto (memoized, `Object.is` true).
-  - `refresh()` retorna nuevo objeto con mismo contenido.
-  - `eager: true` → walk ocurre en `autoExpose()` (verificable con spy en `walkRoutes`).
-  - `strictSchema: true` + 1 ruta sin `mcpExpose` → esa ruta no aparece en `tools()`.
-  - `mcpExpose({ hide: true })` → ruta omitida de `tools()`.
-  - `_source.framework === "express"` en cada tool.
-- 5.2. Implementar `autoExpose.ts`.
-- 5.3. Barrel `src/index.ts` con todos los exports públicos.
-- 5.4. `pnpm --filter @mcp-auto-expose/express check-types` verde.
-- 5.5. Verde + commit: `feat(express): autoExpose factory with lazy memoized walk`.
+  - `create_users.inputSchema.properties.name` and `.email` present, `required: ["name", "email"]`.
+  - Second call to `tools()` returns the same object (memoized, `Object.is` true).
+  - `refresh()` returns new object with same content.
+  - `eager: true` → walk occurs in `autoExpose()` (verifiable with spy on `walkRoutes`).
+  - `strictSchema: true` + 1 route without `mcpExpose` → that route does not appear in `tools()`.
+  - `mcpExpose({ hide: true })` → route omitted from `tools()`.
+  - `_source.framework === "express"` on each tool.
+- 5.2. Implement `autoExpose.ts`.
+- 5.3. Barrel `src/index.ts` with all public exports.
+- 5.4. `pnpm --filter @mcp-auto-expose/express check-types` green.
+- 5.5. Green + commit: `feat(express): autoExpose factory with lazy memoized walk`.
 
-### Tarea 6 — Smoke en `apps/dev-sandbox`
+### Task 6 — Smoke in `apps/dev-sandbox`
 
-- 6.1. Crear `apps/dev-sandbox/src/express-main.ts` (ver snippet en §3.1). Sin ningún `console.log`.
-- 6.2. Añadir a `apps/dev-sandbox/package.json`:
+- 6.1. Create `apps/dev-sandbox/src/express-main.ts` (see snippet in §3.1). No `console.log`.
+- 6.2. Add to `apps/dev-sandbox/package.json`:
   - Script: `"dev:express": "node --import tsx src/express-main.ts"`.
   - Deps: `express: "^5.0.0"`, `zod: "^4.0.0"`, `@mcp-auto-expose/express: "workspace:*"`.
-- 6.3. `pnpm install` + `pnpm --filter dev-sandbox check-types` verde.
-- 6.4. **Verificación manual** — inicializar y listar tools:
+- 6.3. `pnpm install` + `pnpm --filter dev-sandbox check-types` green.
+- 6.4. **Manual verification** — initialize and list tools:
   ```sh
   printf '%s\n%s\n' \
     '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}' \
     '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
   | pnpm --filter dev-sandbox run dev:express 2>express-sandbox.stderr.log
   ```
-  **stdout esperado:** exactamente 2 líneas JSON-RPC — respuesta `initialize` y respuesta `tools/list` con 3 tools (`list_users`, `get_users_by_id`, `create_users`). Sin ninguna otra línea.
-  **stderr esperado** (`express-sandbox.stderr.log`): logs de diagnóstico del adaptador. No contamina stdout.
-  **Prueba del guard:** añadir `console.log("ruido")` antes de `startStdio` → stdout sigue siendo JSON-RPC puro.
-  **Prueba de strictSchema:** comentar `mcpExpose` en una ruta → `tools/list` baja a 2 tools y stderr muestra `missing-schema-strict`.
+  **Expected stdout:** exactly 2 JSON-RPC lines — `initialize` response and `tools/list` response with 3 tools (`list_users`, `get_users_by_id`, `create_users`). No other lines.
+  **Expected stderr** (`express-sandbox.stderr.log`): adapter diagnostic logs. Does not contaminate stdout.
+  **Guard test:** add `console.log("noise")` before `startStdio` → stdout remains pure JSON-RPC.
+  **strictSchema test:** comment out `mcpExpose` on a route → `tools/list` drops to 2 tools and stderr shows `missing-schema-strict`.
 - 6.5. Commit: `chore(dev-sandbox): add Express smoke entry-point`.
 
-### Tarea 7 — README de `packages/express`
+### Task 7 — README for `packages/express`
 
-- 7.1. Snippet de uso completo: Express + Router + `mcpExpose` + `autoExpose` + `startStdio`.
-- 7.2. Sección **strictSchema default divergente vs Fastify**: justificación de seguridad.
-- 7.3. Nota sobre `process.stdout.write` — no usar directamente (reservado para JSON-RPC de stdio).
-- 7.4. Tabla de compatibilidad Express 4 vs 5 (resumida, ref §3.7).
-- 7.5. Sección edge cases de Zod (`z.discriminatedUnion`, `z.lazy`): qué esperar.
+- 7.1. Full usage snippet: Express + Router + `mcpExpose` + `autoExpose` + `startStdio`.
+- 7.2. Section **strictSchema default diverges from Fastify**: security rationale.
+- 7.3. Note on `process.stdout.write` — do not use directly (reserved for stdio JSON-RPC).
+- 7.4. Express 4 vs 5 compatibility table (summarized, ref §3.7).
+- 7.5. Zod edge cases section (`z.discriminatedUnion`, `z.lazy`): what to expect.
 - 7.6. Commit: `docs(express): usage, safety constraints, and Express 4/5 compat notes`.
 
-### Tarea 8 — CI/turbo y lint global
+### Task 8 — CI/turbo and global lint
 
-- 8.1. Verificar que `tsc -b` produce `dist/` y que `turbo.json` cubre `dist/**` en `build.outputs` (ya verificado: sí — no requiere cambio).
-- 8.2. `pnpm --filter @mcp-auto-expose/express lint` verde (0 warnings).
-- 8.3. `pnpm lint` global verde.
-- 8.4. `pnpm --filter @mcp-auto-expose/express test` verde.
-- 8.5. Commit: `chore(turbo): add @mcp-auto-expose/express to workspace` (si se requieren ajustes; si no, omitir).
+- 8.1. Verify that `tsc -b` produces `dist/` and that `turbo.json` covers `dist/**` in `build.outputs` (already verified: yes — no change required).
+- 8.2. `pnpm --filter @mcp-auto-expose/express lint` green (0 warnings).
+- 8.3. Global `pnpm lint` green.
+- 8.4. `pnpm --filter @mcp-auto-expose/express test` green.
+- 8.5. Commit: `chore(turbo): add @mcp-auto-expose/express to workspace` (if adjustments are needed; otherwise omit).
 
-## 7. Verificación de aceptación
+## 7. Acceptance verification
 
-### 7.1. Automática
+### 7.1. Automated
 
 ```sh
 pnpm install
@@ -737,29 +737,29 @@ pnpm --filter dev-sandbox check-types
 pnpm lint
 ```
 
-Todos verdes, cero warnings de lint.
+All green, zero ESLint warnings.
 
-### 7.2. Manual (smoke stdio + Express)
+### 7.2. Manual (stdio smoke + Express)
 
-Ver Tarea 6.4. Criterio de éxito:
+See Task 6.4. Success criteria:
 
-- `tools/list` emite 3 tools con nombres y schemas correctos.
-- stdout = JSON-RPC puro; stderr = logs del adaptador.
-- Quitar un `mcpExpose` → warning en stderr, herramienta desaparece del catálogo.
-- `console.log("ruido")` → redirigido a stderr por el guard de stdio.
+- `tools/list` emits 3 tools with correct names and schemas.
+- stdout = pure JSON-RPC; stderr = adapter logs.
+- Remove a `mcpExpose` → warning in stderr, tool disappears from catalog.
+- `console.log("noise")` → redirected to stderr by the stdio guard.
 
-## 8. Notas y decisiones explícitas
+## 8. Notes and explicit decisions
 
-- **`strictSchema: true` por defecto**: diverge intencionalmente de Fastify (`false`). Justificación: Express es prevalente en apps legacy con endpoints internos/admin; opt-in explícito previene exposición accidental al LLM. Documentado en README.
-- **`mcpExpose` puro (no-op en runtime)**: la validación HTTP no es responsabilidad de este paquete en el MVP. Extensión futura retrocompatible: `{ validate: true }`.
-- **First-wins en múltiples `mcpExpose`**: matchea semántica Express de "primero gana". Warning a stderr para localizar el bug.
-- **Sin cambios en `@mcp-auto-expose/core`**: `RouteDescriptor.framework: "express"` ya soportado; `RouteSchema` ya cubre todos los campos; `resolveTool` y `ToolRegistry` reutilizados sin modificación.
-- **UTF-8 sin BOM** en todos los archivos.
-- **TypeScript strict**: `noUncheckedIndexedAccess` heredado de `@repo/typescript-config/base.json`; no se relaja.
-- **Logs**: todo diagnóstico via `warn(code, ctx)` con prefijo `[mcp-auto-expose:express]`; escriben a `process.stderr`.
-- **`zod-to-json-schema`**: `$refStrategy: "none"` + `target: "jsonSchema7"` + sin `name` — justificaciones en §3.3.
-- **Timing**: `autoExpose(app)` después de registrar todas las rutas, antes de `startStdio`. Walk lazy (default) o eager según `options.eager`.
+- **`strictSchema: true` by default**: intentionally diverges from Fastify (`false`). Rationale: Express is prevalent in legacy apps with internal/admin endpoints; explicit opt-in prevents accidental exposure to the LLM. Documented in README.
+- **Pure `mcpExpose` (runtime no-op)**: HTTP validation is not this package's responsibility in MVP. Future backwards-compatible extension: `{ validate: true }`.
+- **First-wins on multiple `mcpExpose`**: matches Express "first wins" semantics. Warning to stderr to locate the bug.
+- **No changes to `@mcp-auto-expose/core`**: `RouteDescriptor.framework: "express"` already supported; `RouteSchema` already covers all fields; `resolveTool` and `ToolRegistry` reused without modification.
+- **UTF-8 without BOM** in all files.
+- **TypeScript strict**: `noUncheckedIndexedAccess` inherited from `@repo/typescript-config/base.json`; not relaxed.
+- **Logs**: all diagnostics via `warn(code, ctx)` with prefix `[mcp-auto-expose:express]`; written to `process.stderr`.
+- **`zod-to-json-schema`**: `$refStrategy: "none"` + `target: "jsonSchema7"` + no `name` — rationale in §3.3.
+- **Timing**: `autoExpose(app)` after all routes are registered, before `startStdio`. Lazy walk (default) or eager per `options.eager`.
 
 ---
 
-**Punto de control:** Especificación de la Fase 3 lista. Por favor, revisa el archivo de diseño para Express y dame tu aprobación para comenzar la implementación.
+**Checkpoint:** Phase 3 specification complete. Please review the Express design document and give your approval to begin implementation.

@@ -1,19 +1,19 @@
-## Descripción
+## Description
 
-<!-- Breve descripción del cambio -->
+<!-- Brief description of the change -->
 
-## Tipo de cambio
+## Type of change
 
-- [ ] Bug fix (no rompe APIs existentes)
-- [ ] Nueva feature (no rompe APIs existentes)
-- [ ] Breaking change (rompe APIs existentes)
-- [ ] Documentación
+- [ ] Bug fix (does not break existing APIs)
+- [ ] New feature (does not break existing APIs)
+- [ ] Breaking change (breaks existing APIs)
+- [ ] Documentation
 - [ ] Refactor / tooling
 
 ## Checklist
 
-- [ ] He añadido un changeset (`pnpm changeset`) si el cambio es visible al usuario
-- [ ] Los tests pasan: `pnpm test`
-- [ ] El lint pasa: `pnpm lint && pnpm check-types`
-- [ ] El dev-sandbox sigue funcionando (smoke test en CONTRIBUTING.md)
-- [ ] Los breaking changes están documentados en el changeset como `major`
+- [ ] I have added a changeset (`pnpm changeset`) if the change is user-visible
+- [ ] Tests pass: `pnpm test`
+- [ ] Lint passes: `pnpm lint && pnpm check-types`
+- [ ] The dev-sandbox still works (smoke test in CONTRIBUTING.md)
+- [ ] Breaking changes are documented in the changeset as `major`

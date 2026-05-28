@@ -1,17 +1,17 @@
-# Guía de Contribución
+# Contributing Guide
 
-¡Gracias por tu interés en contribuir a `mcp-auto-expose`!
+Thank you for your interest in contributing to `mcp-auto-expose`!
 
 ---
 
-## Requisitos previos
+## Prerequisites
 
 - Node.js ≥22
-- pnpm ≥10 (instalar con: `npm install -g pnpm`)
+- pnpm ≥10 (install with: `npm install -g pnpm`)
 
 ---
 
-## Setup local
+## Local Setup
 
 ```sh
 git clone https://github.com/SoyTiyi/mcp-auto-expose.git
@@ -20,46 +20,46 @@ pnpm install
 pnpm build
 ```
 
-## Verificar que todo funciona
+## Verify Everything Works
 
 ```sh
-pnpm lint            # lint con --max-warnings 0
-pnpm check-types     # type check incluyendo apps/dev-sandbox
-pnpm test            # ≥140 tests deben pasar
+pnpm lint            # lint with --max-warnings 0
+pnpm check-types     # type check including apps/dev-sandbox
+pnpm test            # ≥140 tests must pass
 ```
 
 ---
 
-## Estructura del monorepo
+## Monorepo Structure
 
 ```
 mcp-auto-expose/
 ├── packages/
-│   ├── core/        # @mcp-auto-expose/core — motor de auto-descubrimiento
-│   ├── fastify/     # @mcp-auto-expose/fastify — plugin Fastify (onRoute hook)
-│   ├── express/     # @mcp-auto-expose/express — walker recursivo + decoradores
-│   ├── stdio/       # @mcp-auto-expose/stdio — transporte stdio con stdoutGuard
+│   ├── core/        # @mcp-auto-expose/core — auto-discovery engine
+│   ├── fastify/     # @mcp-auto-expose/fastify — Fastify plugin (onRoute hook)
+│   ├── express/     # @mcp-auto-expose/express — recursive walker + decorators
+│   ├── stdio/       # @mcp-auto-expose/stdio — stdio transport with stdoutGuard
 │   └── http/        # @mcp-auto-expose/http — Streamable HTTP (POST+SSE)
 ├── apps/
-│   └── dev-sandbox/ # app de prueba que compone los paquetes (no se publica)
+│   └── dev-sandbox/ # test app that composes all packages (not published)
 └── packages/
-    ├── eslint-config/       # configuración ESLint compartida
-    └── typescript-config/   # tsconfig bases compartidas
+    ├── eslint-config/       # shared ESLint configuration
+    └── typescript-config/   # shared tsconfig bases
 ```
 
-- Todo el código de la librería vive en `packages/`.
-- `apps/dev-sandbox` es la referencia viva: compone los adaptadores y transportes
-  para validar que todo funciona junto. Los cambios en `packages/` deben seguir
-  pasando el smoke test del sandbox.
+- All library code lives in `packages/`.
+- `apps/dev-sandbox` is the living reference: it composes the adapters and transports
+  to validate that everything works together. Changes in `packages/` must continue
+  passing the sandbox smoke test.
 
 ---
 
-## Hacer cambios
+## Making Changes
 
-1. Crear una rama: `git checkout -b feat/mi-feature`
-2. Hacer los cambios en `packages/`
-3. Añadir o actualizar tests en el mismo paquete (`*.test.ts` junto al source)
-4. Verificar que el dev-sandbox sigue funcionando (smoke test stdio):
+1. Create a branch: `git checkout -b feat/my-feature`
+2. Make changes in `packages/`
+3. Add or update tests in the same package (`*.test.ts` next to the source)
+4. Verify the dev-sandbox still works (stdio smoke test):
 
    ```sh
    printf '%s\n%s\n' \
@@ -69,11 +69,11 @@ mcp-auto-expose/
      2>sandbox.stderr.log
    ```
 
-   La salida en stdout debe contener dos líneas JSON-RPC:
-   1. Respuesta `initialize` con `serverInfo.name: "dev-sandbox"` y `capabilities.tools: {}`.
-   2. Respuesta `tools/list` con 3 tools: `list_users`, `get_users_by_id`, `create_users`.
+   stdout must contain two JSON-RPC lines:
+   1. `initialize` response with `serverInfo.name: "dev-sandbox"` and `capabilities.tools: {}`.
+   2. `tools/list` response with 3 tools: `list_users`, `get_users_by_id`, `create_users`.
 
-5. Ejecutar la suite completa:
+5. Run the full suite:
 
    ```sh
    pnpm build && pnpm test && pnpm lint && pnpm check-types
@@ -81,64 +81,64 @@ mcp-auto-expose/
 
 ---
 
-## Crear un changeset (obligatorio para cambios visibles al usuario)
+## Creating a Changeset (required for user-visible changes)
 
 ```sh
 pnpm changeset
 ```
 
-→ Seleccionar los paquetes afectados  
-→ Elegir el tipo de bump (`patch` / `minor` / `major`)  
-→ Escribir un resumen en inglés del cambio (aparecerá en el CHANGELOG)
+→ Select the affected packages
+→ Choose the bump type (`patch` / `minor` / `major`)
+→ Write a summary of the change (will appear in the CHANGELOG)
 
-### ¿Cuándo es obligatorio un changeset?
+### When is a changeset required?
 
-- Nueva feature o comportamiento
-- Bug fix en una API pública
-- Breaking change (siempre `major`)
+- New feature or behaviour
+- Bug fix in a public API
+- Breaking change (always `major`)
 
-### ¿Cuándo NO hace falta?
+### When is it NOT required?
 
-- Cambios en tests o docs
-- Refactors internos sin cambio de API
-- Cambios en CI/configuración
+- Test or docs changes
+- Internal refactors with no API change
+- CI/configuration changes
 
 ---
 
-## Convención de commits
+## Commit Convention
 
 ```
-feat: nueva feature
+feat: new feature
 fix: bug fix
-docs: solo documentación
+docs: documentation only
 chore: tooling, CI, deps
-refactor: refactor sin cambio de API
+refactor: refactor with no API change
 test: tests
 ```
 
-Para breaking changes, añadir en el cuerpo del commit:
+For breaking changes, add to the commit body:
 
 ```
-BREAKING CHANGE: descripción del cambio incompatible
+BREAKING CHANGE: description of the incompatible change
 ```
 
 ---
 
 ## Pull Requests
 
-- Un solo PR por feature/fix
-- El título del PR debe seguir la misma convención de commits
-- Si el PR tiene breaking changes, incluirlos en el changeset como `major`
-- Un maintainer revisará en ≤5 días hábiles
+- One PR per feature/fix
+- The PR title must follow the same commit convention
+- If the PR has breaking changes, include them in the changeset as `major`
+- A maintainer will review within ≤5 business days
 
 ---
 
-## Para maintainers: proceso de release
+## For Maintainers: Release Process
 
-1. Mergear PRs con changesets
-2. GitHub Actions abre automáticamente un "Version Packages" PR
-3. Revisar el CHANGELOG generado, ajustar si es necesario
-4. Mergear el "Version Packages" PR → los paquetes se publican a npm automáticamente
+1. Merge PRs with changesets
+2. GitHub Actions automatically opens a "Version Packages" PR
+3. Review the generated CHANGELOG, adjust if needed
+4. Merge the "Version Packages" PR → packages are published to npm automatically
 
-Para el primer release: configurar `NPM_TOKEN` en GitHub Actions Secrets
+For the first release: configure `NPM_TOKEN` in GitHub Actions Secrets
 (Settings → Secrets and variables → Actions → New repository secret).

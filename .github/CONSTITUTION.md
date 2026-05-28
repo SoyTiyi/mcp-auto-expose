@@ -1,15 +1,15 @@
-# Constitución del Proyecto mcp-auto-expose
+# mcp-auto-expose Project Constitution
 
-## Principios
+## Principles
 
-1. Spec-First: ningún código se escribe sin un spec aprobado en `specs/`.
-2. Fuente de verdad: `docs/documentation.txt` es el documento rector.
-3. Logs siempre a stderr; stdout reservado para JSON-RPC.
-4. UTF-8 sin BOM en todos los archivos.
-5. TypeScript strict en todos los paquetes.
+1. Spec-First: no code is written without an approved spec in `specs/`.
+2. Source of truth: `docs/documentation.txt` is the governing document.
+3. Logs always to stderr; stdout reserved for JSON-RPC.
+4. UTF-8 without BOM in all files.
+5. TypeScript strict in all packages.
 
-## Proceso de contribución
+## Contribution process
 
-- Proponer cambio → actualizar spec en `specs/` → abrir PR con spec primero.
-- Código solo tras aprobación del spec.
-- TDD: test rojo → implementación → test verde → commit.
+- Propose change → update spec in `specs/` → open PR with spec first.
+- Code only after spec approval.
+- TDD: red test → implementation → green test → commit.

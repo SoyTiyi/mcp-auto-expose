@@ -1,21 +1,21 @@
-# Fase 2 — Transporte stdio + Instanciación del Servidor MCP
+# Phase 2 — stdio Transport + MCP Server Instantiation
 
-> **Estatus:** Especificación aprobada — en espera de luz verde para implementación.
-> **Metodología:** Spec-Driven Development.
-> **Anclaje:** `docs/principal-document.txt` §70–§76 (transporte stdio), §177–§183 (Fase 3 del roadmap), §35 (impedance mismatch resolver).
-> **Fecha:** 2026-05-23.
+> **Status:** Specification approved — awaiting green light for implementation.
+> **Methodology:** Spec-Driven Development.
+> **Anchor:** `docs/principal-document.txt` §70–§76 (stdio transport), §177–§183 (Phase 3 of roadmap), §35 (impedance mismatch resolver).
+> **Date:** 2026-05-23.
 
-## 1. Objetivo
+## 1. Objective
 
-Conectar la salida del adaptador Fastify de la Fase 1 (`app.mcpAutoExpose.tools(): MCPTool[]`) a una instancia real del servidor MCP usando el transporte local stdio. El proceso resultante expone el catálogo de herramientas via `tools/list` y protege la tubería JSON-RPC stdout de cualquier contaminación por logs del framework huésped.
+Connect the output of the Phase 1 Fastify adapter (`app.mcpAutoExpose.tools(): MCPTool[]`) to a real MCP server instance using the local stdio transport. The resulting process exposes the tool catalog via `tools/list` and protects the stdout JSON-RPC pipe from any contamination by host framework logs.
 
-**Fuera de alcance:**
+**Out of scope:**
 
-- Dispatch real de `tools/call` a handlers de Fastify (requiere extender `_source` en core para preservar mapeo flatten→`{params, querystring, body}`). Se implementa en fase posterior.
-- Adaptador Express (Fase 4).
-- Streamable HTTP, SEP-2243, SEP-2549, SEP-414 (Fase 5).
+- Real dispatch of `tools/call` to Fastify handlers (requires extending `_source` in core to preserve the flatten→`{params, querystring, body}` mapping). Implemented in a later phase.
+- Express adapter (Phase 4).
+- Streamable HTTP, SEP-2243, SEP-2549, SEP-414 (Phase 5).
 
-## 2. Arquitectura
+## 2. Architecture
 
 ```
 apps/dev-sandbox  ── Fastify v5 + autoExpose ──► app.mcpAutoExpose.tools(): MCPTool[]
@@ -36,17 +36,17 @@ apps/dev-sandbox  ── Fastify v5 + autoExpose ──► app.mcpAutoExpose.too
                                        stdin/stdout = JSON-RPC 2.0 UTF-8
 ```
 
-### 2.1. Paquetes a crear
+### 2.1. Packages to create
 
 - `packages/stdio` → `@mcp-auto-expose/stdio`
-  - `stdoutGuard.ts`: blindaje global `console.*` → stderr.
-  - `registerTools.ts`: itera `MCPTool[]` y llama `server.registerTool(...)`.
-  - `startStdio.ts`: factory pública async.
-- `apps/dev-sandbox` — app de prueba que compone Fastify + `autoExpose` + `startStdio`.
+  - `stdoutGuard.ts`: global `console.*` → stderr guard.
+  - `registerTools.ts`: iterates `MCPTool[]` and calls `server.registerTool(...)`.
+  - `startStdio.ts`: public async factory.
+- `apps/dev-sandbox` — test app that composes Fastify + `autoExpose` + `startStdio`.
 
-## 3. Diseño técnico detallado
+## 3. Detailed technical design
 
-### 3.1. API pública de `@mcp-auto-expose/stdio`
+### 3.1. Public API of `@mcp-auto-expose/stdio`
 
 ```ts
 import type { MCPTool } from "@mcp-auto-expose/core";
@@ -55,9 +55,9 @@ export interface StartStdioOptions {
   name: string;
   version: string;
   tools: MCPTool[];
-  /** Default true. Desactivar sólo en tests aislados. */
+  /** Default true. Disable only in isolated tests. */
   installGuard?: boolean;
-  /** Hook opcional. Fase 2 default = placeholder estructurado. */
+  /** Optional hook. Phase 2 default = structured placeholder. */
   onToolCall?: (
     tool: MCPTool,
     args: unknown,
@@ -72,7 +72,7 @@ export async function startStdio(options: StartStdioOptions): Promise<StartStdio
 export { installStdoutGuard, restoreStdoutGuard, isStdoutGuardInstalled } from "./stdoutGuard.js";
 ```
 
-Uso esperado (desde `apps/dev-sandbox`):
+Expected usage (from `apps/dev-sandbox`):
 
 ```ts
 import Fastify from "fastify";
@@ -81,36 +81,36 @@ import { startStdio } from "@mcp-auto-expose/stdio";
 
 const app = Fastify({ logger: { stream: process.stderr } });
 await app.register(autoExpose);
-// … definir rutas …
+// … define routes …
 await app.ready();
 await startStdio({ name: "dev-sandbox", version: "0.0.0", tools: app.mcpAutoExpose.tools() });
 ```
 
-### 3.2. Blindaje stdout/stderr (`stdoutGuard.ts`)
+### 3.2. stdout/stderr guard (`stdoutGuard.ts`)
 
-**Justificación** (principal-document §75, §183): `stdout` está consagrado exclusivamente al protocolo JSON-RPC. Cualquier `console.log` descarriado destruye silenciosamente la sesión del cliente MCP.
+**Rationale** (principal-document §75, §183): `stdout` is consecrated exclusively to the JSON-RPC protocol. Any stray `console.log` silently destroys the MCP client session.
 
-**Estrategia:** parchear los métodos de `console` globalmente; cada uno serializa via `util.format(...args) + "\n"` y escribe a `process.stderr.write`. **No** se parchea `process.stdout.write` porque `StdioServerTransport` del SDK lo usa directamente y reemplazarlo destruiría el protocolo.
+**Strategy:** globally patch `console` methods; each one serializes via `util.format(...args) + "\n"` and writes to `process.stderr.write`. **Does not** patch `process.stdout.write` because the SDK's `StdioServerTransport` uses it directly and replacing it would destroy the protocol.
 
-Métodos parcheados: `log`, `info`, `warn`, `error`, `debug`, `trace`, `dir`, `group`, `groupCollapsed`, `groupEnd`, `table`, `count`, `countReset`, `time`, `timeLog`, `timeEnd`, `assert`.
+Patched methods: `log`, `info`, `warn`, `error`, `debug`, `trace`, `dir`, `group`, `groupCollapsed`, `groupEnd`, `table`, `count`, `countReset`, `time`, `timeLog`, `timeEnd`, `assert`.
 
-**Restricción contractual documentada en README**: el código huésped no debe llamar `process.stdout.write` directamente. Pino (logger por defecto de Fastify v5) escribe a stdout salvo que se configure `logger: { stream: process.stderr }` — esta configuración es obligatoria cuando se usa el transport stdio.
+**Contractual constraint documented in README**: host code must not call `process.stdout.write` directly. Pino (Fastify v5's default logger) writes to stdout unless configured with `logger: { stream: process.stderr }` — this configuration is required when using the stdio transport.
 
-**Firmas:**
+**Signatures:**
 
 ```ts
-export function installStdoutGuard(): void; // idempotente
-export function restoreStdoutGuard(): void; // repone originalConsole (para tests)
+export function installStdoutGuard(): void; // idempotent
+export function restoreStdoutGuard(): void; // restores originalConsole (for tests)
 export function isStdoutGuardInstalled(): boolean;
 ```
 
-### 3.3. Registro dinámico de tools (`registerTools.ts`)
+### 3.3. Dynamic tool registration (`registerTools.ts`)
 
-El SDK MCP TypeScript v1.x expone `fromJsonSchema` para usar JSON Schema plano (sin Zod) como `inputSchema`, lo que encaja exactamente con `MCPToolInputSchema` de `@mcp-auto-expose/core`.
+The MCP TypeScript SDK v1.x exposes `fromJsonSchema` to use plain JSON Schema (without Zod) as `inputSchema`, which fits exactly with `MCPToolInputSchema` from `@mcp-auto-expose/core`.
 
 ```ts
 import { fromJsonSchema } from "@modelcontextprotocol/sdk/server/mcp.js";
-// (import path exacto se confirma tras pnpm install según export map del paquete)
+// (exact import path confirmed after pnpm install per package export map)
 
 export function registerTools({ server, tools, onToolCall }): void {
   for (const tool of tools) {
@@ -127,9 +127,9 @@ export function registerTools({ server, tools, onToolCall }): void {
             {
               type: "text",
               text:
-                `[fase2-placeholder] tool "${tool.name}" mapea a ` +
+                `[phase2-placeholder] tool "${tool.name}" maps to ` +
                 `${tool._source.method} ${tool._source.url}. ` +
-                `Invocación real pendiente de fase posterior.`,
+                `Real invocation pending a later phase.`,
             },
           ],
         };
@@ -139,7 +139,7 @@ export function registerTools({ server, tools, onToolCall }): void {
 }
 ```
 
-### 3.4. Factory `startStdio.ts`
+### 3.4. `startStdio.ts` factory
 
 ```ts
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -164,7 +164,7 @@ export async function startStdio(options: StartStdioOptions): Promise<StartStdio
 }
 ```
 
-### 3.5. Estructura de archivos
+### 3.5. File structure
 
 ```
 packages/stdio/
@@ -248,61 +248,61 @@ apps/dev-sandbox/
 }
 ```
 
-## 4. Plan de tareas (TDD obligatorio: rojo → verde → commit)
+## 4. Task plan (TDD required: red → green → commit)
 
-### Tarea 1 — Andamiar `packages/stdio`
+### Task 1 — Scaffold `packages/stdio`
 
-- 1.1. Crear `package.json`, `tsconfig.json`, `eslint.config.mjs`, `src/index.ts` vacío.
-- 1.2. `pnpm install` (resuelve `@modelcontextprotocol/sdk` y lo añade al lockfile).
+- 1.1. Create `package.json`, `tsconfig.json`, `eslint.config.mjs`, empty `src/index.ts`.
+- 1.2. `pnpm install` (resolves `@modelcontextprotocol/sdk` and adds it to the lockfile).
 - 1.3. `pnpm --filter @mcp-auto-expose/stdio check-types`.
 - 1.4. Commit: `chore(stdio): scaffold @mcp-auto-expose/stdio package`.
 
-### Tarea 2 — `stdoutGuard`
+### Task 2 — `stdoutGuard`
 
-- 2.1. Tests rojos (`stdoutGuard.test.ts`): `console.log("x")` tras `installStdoutGuard()` no escribe nada a stdout; `restoreStdoutGuard()` repone; `installStdoutGuard()` es idempotente (segunda llamada no duplica el parcheado).
-- 2.2. Implementar `stdoutGuard.ts`.
-- 2.3. Verde + commit: `feat(stdio): global console guard redirecting to stderr`.
+- 2.1. Red tests (`stdoutGuard.test.ts`): `console.log("x")` after `installStdoutGuard()` writes nothing to stdout; `restoreStdoutGuard()` restores; `installStdoutGuard()` is idempotent (second call does not duplicate the patching).
+- 2.2. Implement `stdoutGuard.ts`.
+- 2.3. Green + commit: `feat(stdio): global console guard redirecting to stderr`.
 
-### Tarea 3 — `registerTools`
+### Task 3 — `registerTools`
 
-- 3.1. Tests rojos (`registerTools.test.ts`): mock minimal de `McpServer` con spy en `registerTool`; N tools → N llamadas; cada llamada incluye `name`, `description` e `inputSchema`; el handler placeholder incluye `_source.method` y `_source.url` en el texto.
-- 3.2. Implementar `registerTools.ts`.
-- 3.3. Verde + commit: `feat(stdio): dynamic tool registration from MCPTool[]`.
+- 3.1. Red tests (`registerTools.test.ts`): minimal mock of `McpServer` with spy on `registerTool`; N tools → N calls; each call includes `name`, `description` and `inputSchema`; the placeholder handler includes `_source.method` and `_source.url` in the text.
+- 3.2. Implement `registerTools.ts`.
+- 3.3. Green + commit: `feat(stdio): dynamic tool registration from MCPTool[]`.
 
-### Tarea 4 — `startStdio`
+### Task 4 — `startStdio`
 
-- 4.1. Test ligero con mocks de `McpServer` y `StdioServerTransport`: confirma orden `installStdoutGuard` → `new McpServer` → `registerTools` → `connect`.
-- 4.2. Implementar `startStdio.ts`.
-- 4.3. Barrel `src/index.ts` con exports públicos.
-- 4.4. Verde + commit: `feat(stdio): startStdio factory wiring McpServer + StdioServerTransport`.
+- 4.1. Lightweight test with mocks of `McpServer` and `StdioServerTransport`: confirms order `installStdoutGuard` → `new McpServer` → `registerTools` → `connect`.
+- 4.2. Implement `startStdio.ts`.
+- 4.3. Barrel `src/index.ts` with public exports.
+- 4.4. Green + commit: `feat(stdio): startStdio factory wiring McpServer + StdioServerTransport`.
 
-### Tarea 5 — Andamiar `apps/dev-sandbox`
+### Task 5 — Scaffold `apps/dev-sandbox`
 
-- 5.1. Crear `package.json`, `tsconfig.json`, `src/main.ts`.
+- 5.1. Create `package.json`, `tsconfig.json`, `src/main.ts`.
 - 5.2. `pnpm install`.
-- 5.3. `pnpm --filter dev-sandbox check-types` verde.
+- 5.3. `pnpm --filter dev-sandbox check-types` green.
 - 5.4. Commit: `chore(dev-sandbox): scaffold sandbox app`.
 
-### Tarea 6 — Smoke end-to-end y documentación
+### Task 6 — End-to-end smoke and documentation
 
-- 6.1. Verificación manual (ver §5.2).
-- 6.2. `apps/dev-sandbox/README.md` con instrucciones del smoke.
+- 6.1. Manual verification (see §5.2).
+- 6.2. `apps/dev-sandbox/README.md` with smoke instructions.
 - 6.3. Commit: `docs(dev-sandbox): stdio smoke test instructions`.
 
-### Tarea 7 — README de `packages/stdio`
+### Task 7 — README for `packages/stdio`
 
-- 7.1. Snippet de uso, nota Pino/Fastify, restricción contractual `process.stdout.write`.
+- 7.1. Usage snippet, Pino/Fastify note, contractual constraint on `process.stdout.write`.
 - 7.2. Commit: `docs(stdio): usage and stdio safety notes`.
 
-### Tarea 8 — CI/turbo
+### Task 8 — CI/turbo
 
-- 8.1. Verificar si `tsc -b` produce `dist/`. Si sí, añadir `"outputs": ["dist/**"]` a la task `build` en `turbo.json`.
-- 8.2. `pnpm lint` global sin warnings.
-- 8.3. Commit: `chore(turbo): include dist outputs for @mcp-auto-expose/stdio` (si aplica).
+- 8.1. Verify whether `tsc -b` produces `dist/`. If so, add `"outputs": ["dist/**"]` to the `build` task in `turbo.json`.
+- 8.2. Global `pnpm lint` with no warnings.
+- 8.3. Commit: `chore(turbo): include dist outputs for @mcp-auto-expose/stdio` (if applicable).
 
-## 5. Verificación de aceptación
+## 5. Acceptance verification
 
-### 5.1. Automática
+### 5.1. Automated
 
 ```sh
 pnpm install
@@ -312,9 +312,9 @@ pnpm --filter dev-sandbox check-types
 pnpm lint
 ```
 
-Todos verdes, cero warnings.
+All green, zero warnings.
 
-### 5.2. Manual (smoke stdio)
+### 5.2. Manual (stdio smoke)
 
 ```sh
 printf '%s\n%s\n' \
@@ -324,21 +324,21 @@ printf '%s\n%s\n' \
   2>sandbox.stderr.log
 ```
 
-**stdout esperado:** exactamente dos líneas JSON-RPC — la respuesta `initialize` y la respuesta `tools/list` con 3 tools (`list_users`, `get_users_by_id`, `create_users`). Sin ninguna otra línea.
+**Expected stdout:** exactly two JSON-RPC lines — the `initialize` response and the `tools/list` response with 3 tools (`list_users`, `get_users_by_id`, `create_users`). No other lines.
 
-**stderr esperado (`sandbox.stderr.log`):** logs de Pino/Fastify y cualquier diagnóstico del paquete. No contamina stdout.
+**Expected stderr (`sandbox.stderr.log`):** Pino/Fastify logs and any package diagnostics. Does not contaminate stdout.
 
-**Prueba del guard:** insertar un `console.log("ruido")` en `main.ts` antes de `startStdio`. Verificar que stdout sigue siendo JSON-RPC puro y `sandbox.stderr.log` contiene `"ruido"`.
+**Guard test:** insert `console.log("noise")` in `main.ts` before `startStdio`. Verify that stdout remains pure JSON-RPC and `sandbox.stderr.log` contains `"noise"`.
 
-## 6. Notas y decisiones explícitas
+## 6. Notes and explicit decisions
 
-- **`tools/call` placeholder**: en Fase 2 el handler retorna texto descriptivo. La implementación real requiere extender `MCPTool._source` en `@mcp-auto-expose/core` con un mapa `originKey → "params"|"querystring"|"body"` para reconsteruir la petición HTTP. Eso es trabajo de una fase posterior.
-- **No se modifica `@mcp-auto-expose/core`** ni `@mcp-auto-expose/fastify` en esta fase.
-- **Logs**: todo diagnóstico del runtime del paquete usa `process.stderr.write`.
-- **UTF-8**: archivos sin BOM.
-- **TypeScript strict**: `noUncheckedIndexedAccess` heredado, no se relaja.
-- **`pnpm-workspace.yaml`**: ya cubre `packages/*` y `apps/*`; no requiere cambios.
+- **`tools/call` placeholder**: in Phase 2 the handler returns descriptive text. The real implementation requires extending `MCPTool._source` in `@mcp-auto-expose/core` with an `originKey → "params"|"querystring"|"body"` map to reconstruct the HTTP request. That is future phase work.
+- **No changes to `@mcp-auto-expose/core`** or `@mcp-auto-expose/fastify` in this phase.
+- **Logs**: all package runtime diagnostics use `process.stderr.write`.
+- **UTF-8**: files without BOM.
+- **TypeScript strict**: `noUncheckedIndexedAccess` inherited, not relaxed.
+- **`pnpm-workspace.yaml`**: already covers `packages/*` and `apps/*`; no changes required.
 
 ---
 
-**Punto de control**: especificación aprobada. Las Tareas 1–8 se ejecutarán secuencialmente tras la luz verde del operador.
+**Checkpoint**: specification approved. Tasks 1–8 will be executed sequentially upon operator go-ahead.
