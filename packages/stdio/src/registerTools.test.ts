@@ -34,7 +34,12 @@ const sampleTools: MCPTool[] = [
       properties: { name: { type: "string" }, email: { type: "string" } },
       required: ["name", "email"],
     },
-    _source: { framework: "fastify", method: "POST", url: "/api/users", paramMap: { name: "body", email: "body" } },
+    _source: {
+      framework: "fastify",
+      method: "POST",
+      url: "/api/users",
+      paramMap: { name: "body", email: "body" },
+    },
   },
 ];
 
@@ -64,15 +69,12 @@ describe("registerTools", () => {
     registerTools({ server: server as never, tools: sampleTools, onToolCall: noop });
     const listHandler = server.server.handlers[0]?.handler;
     assert.ok(listHandler);
-    const result = await listHandler({}) as {
+    const result = (await listHandler({})) as {
       tools: { inputSchema: Record<string, unknown> }[];
     };
     const schema = result.tools[1]?.inputSchema;
     assert.ok(schema, "inputSchema must be present");
-    assert.deepEqual(
-      (schema as Record<string, unknown>)["required"],
-      ["name", "email"],
-    );
+    assert.deepEqual((schema as Record<string, unknown>)["required"], ["name", "email"]);
   });
 
   it("tools/call handler invokes onToolCall and returns its result", async () => {
@@ -94,7 +96,7 @@ describe("registerTools", () => {
     registerTools({ server: server as never, tools: sampleTools, onToolCall: noop });
     const callHandler = server.server.handlers[1]?.handler;
     assert.ok(callHandler);
-    const result = await callHandler({ params: { name: "nonexistent_tool", arguments: {} } }) as {
+    const result = (await callHandler({ params: { name: "nonexistent_tool", arguments: {} } })) as {
       content: { type: string; text: string }[];
       isError: boolean;
     };
@@ -123,7 +125,9 @@ describe("registerTools", () => {
 
   it("registers handlers with empty tools list without throwing", () => {
     const server = makeServerStub();
-    assert.doesNotThrow(() => registerTools({ server: server as never, tools: [], onToolCall: noop }));
+    assert.doesNotThrow(() =>
+      registerTools({ server: server as never, tools: [], onToolCall: noop }),
+    );
     assert.equal(server.server.handlers.length, 2);
   });
 });

@@ -13,10 +13,7 @@ declare module "fastify" {
   }
 }
 
-const autoExposePlugin: FastifyPluginAsync<AutoExposeOptions> = async (
-  fastify,
-  options,
-) => {
+const autoExposePlugin: FastifyPluginAsync<AutoExposeOptions> = async (fastify, options) => {
   const registry = new ToolRegistry();
 
   fastify.decorate("mcpAutoExpose", {

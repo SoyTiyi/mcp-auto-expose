@@ -11,8 +11,14 @@ export interface ValidateFail {
 }
 export type ValidateResult = ValidateOk | ValidateFail;
 
-export interface DecodeOk { ok: true; value: string }
-export interface DecodeFail { ok: false; reason: "invalid-base64" }
+export interface DecodeOk {
+  ok: true;
+  value: string;
+}
+export interface DecodeFail {
+  ok: false;
+  reason: "invalid-base64";
+}
 export type DecodeResult = DecodeOk | DecodeFail;
 
 function needsEncoding(value: string): boolean {
@@ -60,7 +66,9 @@ export function collectExpectedHeaderParams(
   inputSchema: Record<string, unknown>,
 ): Record<string, string> {
   const out: Record<string, string> = {};
-  const properties = inputSchema["properties"] as Record<string, Record<string, unknown>> | undefined;
+  const properties = inputSchema["properties"] as
+    | Record<string, Record<string, unknown>>
+    | undefined;
   if (!properties) return out;
   for (const [propKey, prop] of Object.entries(properties)) {
     const name = prop["x-mcp-header"];
@@ -92,7 +100,9 @@ export function validateAndMergeHeaderParams(
   headers: Record<string, string | string[] | undefined>,
 ): ValidateResult {
   const merged: Record<string, unknown> = { ...args };
-  const properties = inputSchema["properties"] as Record<string, Record<string, unknown>> | undefined;
+  const properties = inputSchema["properties"] as
+    | Record<string, Record<string, unknown>>
+    | undefined;
   if (!properties) return { ok: true, args: merged };
 
   for (const [propKey, prop] of Object.entries(properties)) {

@@ -10,15 +10,7 @@ import type {
 
 describe("HTTPMethod", () => {
   it("accepts valid HTTP methods", () => {
-    const methods: HTTPMethod[] = [
-      "GET",
-      "POST",
-      "PUT",
-      "PATCH",
-      "DELETE",
-      "HEAD",
-      "OPTIONS",
-    ];
+    const methods: HTTPMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
     assert.equal(methods.length, 7);
     assert.equal(methods[0], "GET");
   });
@@ -34,7 +26,7 @@ describe("MCPToolInputSchema", () => {
       },
     };
     assert.equal(schema.type, "object");
-    assert.ok(["name", "age"].every(k => k in schema.properties));
+    assert.ok(["name", "age"].every((k) => k in schema.properties));
   });
 
   it("accepts schema with required fields", () => {
@@ -131,7 +123,12 @@ describe("MCPTool", () => {
         },
         required: ["name", "email"],
       },
-      _source: { framework: "express", method: "POST", url: "/users", paramMap: { name: "body", email: "body" } },
+      _source: {
+        framework: "express",
+        method: "POST",
+        url: "/users",
+        paramMap: { name: "body", email: "body" },
+      },
     };
     assert.equal(tool.inputSchema.required?.length, 2);
     assert.equal(tool._source.method, "POST");

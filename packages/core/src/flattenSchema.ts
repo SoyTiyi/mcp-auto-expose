@@ -35,11 +35,7 @@ export function buildToolSchema(routeSchema?: RouteSchema): BuiltToolSchema {
 
     for (const [key, propSchema] of Object.entries(subProperties)) {
       // Check if $ref present — skip it with a warning to stderr
-      if (
-        typeof propSchema === "object" &&
-        propSchema !== null &&
-        "$ref" in propSchema
-      ) {
+      if (typeof propSchema === "object" && propSchema !== null && "$ref" in propSchema) {
         process.stderr.write(
           `[mcp-auto-expose] skipping property "${key}" from "${source}" — $ref not supported in MVP\n`,
         );
@@ -47,8 +43,7 @@ export function buildToolSchema(routeSchema?: RouteSchema): BuiltToolSchema {
       }
 
       // Handle key collision
-      const finalKey =
-        key in out.properties ? renameOnCollision(key, source) : key;
+      const finalKey = key in out.properties ? renameOnCollision(key, source) : key;
 
       out.properties[finalKey] = propSchema;
       paramMap[finalKey] = source;

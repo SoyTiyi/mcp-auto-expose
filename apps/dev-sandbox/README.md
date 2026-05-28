@@ -22,6 +22,7 @@ printf '%s\n%s\n' \
 ```
 
 **Salida esperada en stdout** (dos líneas JSON-RPC):
+
 1. Respuesta `initialize` con `serverInfo.name: "dev-sandbox"` y `capabilities.tools: {}`.
 2. Respuesta `tools/list` con 3 tools: `list_users`, `get_users_by_id`, `create_users`.
 

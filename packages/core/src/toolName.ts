@@ -53,27 +53,19 @@ export function generateToolName(method: HTTPMethod, url: string): string {
 
   switch (method) {
     case "GET":
-      name = hasParams
-        ? `get_${resource}_by_${paramSuffix}`
-        : `list_${resource}`;
+      name = hasParams ? `get_${resource}_by_${paramSuffix}` : `list_${resource}`;
       break;
     case "POST":
       name = `create_${resource}`;
       break;
     case "PUT":
-      name = hasParams
-        ? `replace_${resource}_by_${paramSuffix}`
-        : `replace_${resource}`;
+      name = hasParams ? `replace_${resource}_by_${paramSuffix}` : `replace_${resource}`;
       break;
     case "PATCH":
-      name = hasParams
-        ? `update_${resource}_by_${paramSuffix}`
-        : `update_${resource}`;
+      name = hasParams ? `update_${resource}_by_${paramSuffix}` : `update_${resource}`;
       break;
     case "DELETE":
-      name = hasParams
-        ? `delete_${resource}_by_${paramSuffix}`
-        : `delete_${resource}`;
+      name = hasParams ? `delete_${resource}_by_${paramSuffix}` : `delete_${resource}`;
       break;
     case "HEAD":
     case "OPTIONS":
@@ -88,10 +80,7 @@ export function generateToolName(method: HTTPMethod, url: string): string {
 
   // Step 5: truncation
   if (name.length > 64) {
-    const hash = createHash("sha256")
-      .update(`${method}:${url}`)
-      .digest("hex")
-      .slice(0, 6);
+    const hash = createHash("sha256").update(`${method}:${url}`).digest("hex").slice(0, 6);
     name = `${name.slice(0, 56)}_h${hash}`;
   }
 

@@ -22,11 +22,13 @@ export function convertCached(schema: z.ZodType): Record<string, unknown> {
 
   let out: Record<string, unknown>;
   try {
-    out = { ...(z.toJSONSchema(schema, {
-      target: "draft-2020-12",
-      reused: "inline",
-      unrepresentable: "any",
-    }) as Record<string, unknown>) };
+    out = {
+      ...(z.toJSONSchema(schema, {
+        target: "draft-2020-12",
+        reused: "inline",
+        unrepresentable: "any",
+      }) as Record<string, unknown>),
+    };
     // Remove Standard Schema marker — not part of the JSON Schema output
     delete out["~standard"];
   } catch (e) {
@@ -47,7 +49,9 @@ export function convertCached(schema: z.ZodType): Record<string, unknown> {
     if (schema instanceof z.ZodObject) {
       const properties = out["properties"] as Record<string, Record<string, unknown>> | undefined;
       if (properties) {
-        for (const [propName, propSchema] of Object.entries(schema.shape as Record<string, z.ZodType>)) {
+        for (const [propName, propSchema] of Object.entries(
+          schema.shape as Record<string, z.ZodType>,
+        )) {
           if (!isMcpHeader(propSchema)) continue;
           if (!properties[propName]) continue;
           const explicit = getMcpHeaderName(propSchema);

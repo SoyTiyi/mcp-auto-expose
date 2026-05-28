@@ -3,19 +3,13 @@ import type { RouteDescriptor, HTTPMethod, RouteSchema } from "@mcp-auto-expose/
 
 export interface AutoExposeOptions {
   strictSchema?: boolean;
+  includeHead?: boolean; // default: false — HEAD excluded by default (Fastify auto-generates HEAD for every GET)
 }
 
 // HEAD is excluded: Fastify auto-generates a HEAD route for every GET route.
 // Including HEAD would produce a duplicate tool (e.g. head_users) alongside list_users.
 // OPTIONS is included because users may define explicit OPTIONS handlers for non-CORS purposes.
-const SUPPORTED_METHODS = new Set<string>([
-  "GET",
-  "POST",
-  "PUT",
-  "PATCH",
-  "DELETE",
-  "OPTIONS",
-]);
+const SUPPORTED_METHODS = new Set<string>(["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]);
 
 export function adaptRouteOptions(
   routeOptions: RouteOptions,
@@ -42,16 +36,12 @@ export function adaptRouteOptions(
   if (schema?.hide === true) return [];
 
   // Skip if explicitly opted out
-  if (
-    (routeOptions.config as { mcpExpose?: boolean } | undefined)?.mcpExpose === false
-  ) {
+  if ((routeOptions.config as { mcpExpose?: boolean } | undefined)?.mcpExpose === false) {
     return [];
   }
 
   // Check if has input schema
-  const hasInputSchema = Boolean(
-    schema?.body ?? schema?.querystring ?? schema?.params,
-  );
+  const hasInputSchema = Boolean(schema?.body ?? schema?.querystring ?? schema?.params);
 
   if (pluginOptions.strictSchema && !hasInputSchema) return [];
 
@@ -70,7 +60,8 @@ export function adaptRouteOptions(
   const descriptors: RouteDescriptor[] = [];
 
   for (const method of rawMethods) {
-    if (!SUPPORTED_METHODS.has(method)) continue;
+    if (method === "HEAD" && !pluginOptions.includeHead) continue;
+    if (!SUPPORTED_METHODS.has(method) && method !== "HEAD") continue;
     descriptors.push({
       framework: "fastify",
       method: method as HTTPMethod,

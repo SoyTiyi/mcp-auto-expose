@@ -6,11 +6,7 @@ export interface CallToolResult {
   isError?: boolean;
 }
 
-export type OnToolCall = (
-  tool: MCPTool,
-  args: unknown,
-  ctx?: unknown,
-) => Promise<CallToolResult>;
+export type OnToolCall = (tool: MCPTool, args: unknown, ctx?: unknown) => Promise<CallToolResult>;
 
 export interface HttpCallerOptions {
   baseUrl: string;

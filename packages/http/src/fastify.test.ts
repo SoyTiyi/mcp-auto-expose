@@ -18,7 +18,12 @@ const TEST_TOOL = {
   name: "get_item",
   description: "Get an item by id",
   inputSchema: TOOL_SCHEMA,
-  _source: { framework: "express" as const, method: "GET" as const, url: "/items/:id", paramMap: { id: "params" as const, tenant_id: "params" as const } },
+  _source: {
+    framework: "express" as const,
+    method: "GET" as const,
+    url: "/items/:id",
+    paramMap: { id: "params" as const, tenant_id: "params" as const },
+  },
 };
 
 type CallCapture = { tool: string; args: unknown; ctx: unknown };
@@ -40,9 +45,19 @@ function makeOpts(overrides?: Partial<McpHttpOptions>): McpHttpOptions & { calls
 }
 
 function parseMcpBody(text: string): unknown {
-  try { return JSON.parse(text); } catch { /* not JSON */ }
+  try {
+    return JSON.parse(text);
+  } catch {
+    /* not JSON */
+  }
   const dataLine = text.split("\n").find((l) => l.startsWith("data: "));
-  if (dataLine) { try { return JSON.parse(dataLine.slice(6)); } catch { /* not JSON */ } }
+  if (dataLine) {
+    try {
+      return JSON.parse(dataLine.slice(6));
+    } catch {
+      /* not JSON */
+    }
+  }
   return text;
 }
 
@@ -68,8 +83,14 @@ async function initializeMcp(fastify: ReturnType<typeof Fastify>): Promise<void>
   await injectPost(
     fastify,
     {
-      jsonrpc: "2.0", id: 1, method: "initialize",
-      params: { protocolVersion: LATEST_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "test", version: "0" } },
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: LATEST_PROTOCOL_VERSION,
+        capabilities: {},
+        clientInfo: { name: "test", version: "0" },
+      },
     },
     { "Mcp-Method": "initialize" },
   );
@@ -84,8 +105,14 @@ describe("mcpFastifyPlugin — routing", () => {
     const { status, body } = await injectPost(
       fastify,
       {
-        jsonrpc: "2.0", id: 1, method: "initialize",
-        params: { protocolVersion: LATEST_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "t", version: "0" } },
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: LATEST_PROTOCOL_VERSION,
+          capabilities: {},
+          clientInfo: { name: "t", version: "0" },
+        },
       },
       { "Mcp-Method": "initialize" },
     );
@@ -158,7 +185,9 @@ describe("mcpFastifyPlugin — auth propagation", () => {
     await injectPost(
       fastify,
       {
-        jsonrpc: "2.0", id: 5, method: "tools/call",
+        jsonrpc: "2.0",
+        id: 5,
+        method: "tools/call",
         params: { name: "get_item", arguments: { id: "x" } },
       },
       { "Mcp-Method": "tools/call", "Mcp-Name": "get_item" },
@@ -181,7 +210,9 @@ describe("mcpFastifyPlugin — Mcp-Param header injection", () => {
     await injectPost(
       fastify,
       {
-        jsonrpc: "2.0", id: 6, method: "tools/call",
+        jsonrpc: "2.0",
+        id: 6,
+        method: "tools/call",
         params: { name: "get_item", arguments: { id: "abc" } },
       },
       { "Mcp-Method": "tools/call", "Mcp-Name": "get_item", "Mcp-Param-TenantId": "t99" },

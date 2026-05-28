@@ -67,10 +67,7 @@ describe("resolveTool", () => {
 
     const tool = resolveTool(descriptor);
 
-    assert.equal(
-      tool.description,
-      "GET /api/users — auto-descubierto por mcp-auto-expose",
-    );
+    assert.equal(tool.description, "GET /api/users — auto-descubierto por mcp-auto-expose");
   });
 
   it("4. no schema at all — auto-generated description, inputSchema is empty object schema", () => {
@@ -81,10 +78,7 @@ describe("resolveTool", () => {
 
     const tool = resolveTool(descriptor);
 
-    assert.equal(
-      tool.description,
-      "GET /api/users — auto-descubierto por mcp-auto-expose",
-    );
+    assert.equal(tool.description, "GET /api/users — auto-descubierto por mcp-auto-expose");
     assert.deepEqual(tool.inputSchema, { type: "object", properties: {} });
     assert.ok(!("required" in tool.inputSchema), "should have no 'required' key");
   });

@@ -23,7 +23,8 @@ for (const layer of stack as Array<Record<string, unknown>>) {
         process.stderr.write("  matcher keys: " + Object.keys(m as object).join(", ") + "\n");
         const mAny = m as Record<string, unknown>;
         for (const k of ["regexp", "pattern", "path", "keys", "source"]) {
-          if (mAny[k] !== undefined) process.stderr.write(`  matcher.${k}: ` + JSON.stringify(mAny[k]) + "\n");
+          if (mAny[k] !== undefined)
+            process.stderr.write(`  matcher.${k}: ` + JSON.stringify(mAny[k]) + "\n");
         }
       }
     }

@@ -30,11 +30,12 @@ const handle = autoExpose(app, { strictSchema: true });
 
 const router = Router();
 
-router.get(
-  "/users",
-  mcpExpose({ description: "List all users" }),
-  (_req, res) => { res.json([{ id: "u1", name: "Ana" }, { id: "u2", name: "Bob" }]); },
-);
+router.get("/users", mcpExpose({ description: "List all users" }), (_req, res) => {
+  res.json([
+    { id: "u1", name: "Ana" },
+    { id: "u2", name: "Bob" },
+  ]);
+});
 
 router.get(
   "/users/:id",
@@ -60,11 +61,9 @@ router.post(
   },
 );
 
-router.delete(
-  "/users/:id",
-  mcpExpose({ description: "Delete a user by ID" }),
-  (_req, res) => { res.json({ deleted: true }); },
-);
+router.delete("/users/:id", mcpExpose({ description: "Delete a user by ID" }), (_req, res) => {
+  res.json({ deleted: true });
+});
 
 app.use("/api", router);
 
@@ -81,6 +80,10 @@ const { router: mcpRouter } = mountMcpExpress({
 app.use(mcpRouter);
 
 app.listen(3000, "127.0.0.1", () => {
-  process.stderr.write("[mcp-auto-expose:smoke] HTTP Express listening on http://127.0.0.1:3000/mcp\n");
-  process.stderr.write(`[mcp-auto-expose:smoke] ${tools.length} tool(s): ${tools.map((t) => t.name).join(", ")}\n`);
+  process.stderr.write(
+    "[mcp-auto-expose:smoke] HTTP Express listening on http://127.0.0.1:3000/mcp\n",
+  );
+  process.stderr.write(
+    `[mcp-auto-expose:smoke] ${tools.length} tool(s): ${tools.map((t) => t.name).join(", ")}\n`,
+  );
 });

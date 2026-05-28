@@ -57,10 +57,7 @@ describe("validateSep2243", () => {
   });
 
   it("tools/list with matching method, no mcp-name required → ok: true, mcp: { method: tools/list, name: '' }", () => {
-    const result = validateSep2243(
-      { "mcp-method": "tools/list" },
-      { method: "tools/list", id: 1 },
-    );
+    const result = validateSep2243({ "mcp-method": "tools/list" }, { method: "tools/list", id: 1 });
     assert.deepEqual(result, { ok: true, mcp: { method: "tools/list", name: "" } });
   });
 

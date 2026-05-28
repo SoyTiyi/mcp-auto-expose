@@ -49,10 +49,7 @@ test("collision with same name renames to name_2", () => {
   registry.register(makeTool("same_name"));
   const list = registry.list();
   assert.equal(list.length, 2);
-  assert.deepEqual(
-    list.map((t) => t.name).sort(),
-    ["same_name", "same_name_2"]
-  );
+  assert.deepEqual(list.map((t) => t.name).sort(), ["same_name", "same_name_2"]);
 });
 
 test("collision with name_2 also taken renames to name_3", () => {
@@ -62,10 +59,7 @@ test("collision with name_2 also taken renames to name_3", () => {
   registry.register(makeTool("tool"));
   const list = registry.list();
   assert.equal(list.length, 3);
-  assert.deepEqual(
-    list.map((t) => t.name).sort(),
-    ["tool", "tool_2", "tool_3"]
-  );
+  assert.deepEqual(list.map((t) => t.name).sort(), ["tool", "tool_2", "tool_3"]);
 });
 
 test("collision logs to stderr", () => {

@@ -119,5 +119,9 @@ await fastify.register(mcpFastifyPlugin, {
 });
 
 await fastify.listen({ port: 3001, host: "127.0.0.1" });
-process.stderr.write("[mcp-auto-expose:smoke] HTTP Fastify listening on http://127.0.0.1:3001/mcp\n");
-process.stderr.write(`[mcp-auto-expose:smoke] ${tools.length} tool(s): ${tools.map((t) => t.name).join(", ")}\n`);
+process.stderr.write(
+  "[mcp-auto-expose:smoke] HTTP Fastify listening on http://127.0.0.1:3001/mcp\n",
+);
+process.stderr.write(
+  `[mcp-auto-expose:smoke] ${tools.length} tool(s): ${tools.map((t) => t.name).join(", ")}\n`,
+);

@@ -1,0 +1,74 @@
+name: 🐛 Bug Report
+description: Reportar un comportamiento incorrecto de la librería
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por reportar un bug. Completa todos los campos para agilizar el triaje.
+
+  - type: input
+    id: package-version
+    attributes:
+      label: Versión del paquete
+      placeholder: "@mcp-auto-expose/fastify@0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: framework
+    attributes:
+      label: Framework HTTP
+      options:
+        - Fastify
+        - Express
+    validations:
+      required: true
+
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Transporte MCP
+      options:
+        - stdio
+        - Streamable HTTP
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Versión de Node.js
+      placeholder: "22.x"
+    validations:
+      required: true
+
+  - type: input
+    id: reproduction
+    attributes:
+      label: Repositorio de reproducción mínima
+      description: |
+        Link a un repositorio de GitHub o StackBlitz que aísle el bug.
+        Issues sin reproducción no se pueden triagear y serán cerrados.
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción
+      description: "¿Qué esperabas que pasara? ¿Qué pasó en realidad?"
+      placeholder: |
+        Comportamiento esperado:
+        ...
+
+        Comportamiento actual:
+        ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Contexto adicional
+      description: Logs, stack traces, capturas de pantalla (opcional)

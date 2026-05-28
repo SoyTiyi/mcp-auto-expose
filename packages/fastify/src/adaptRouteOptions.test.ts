@@ -41,9 +41,7 @@ describe("adaptRouteOptions", () => {
   });
 
   it("returns empty array when config.mcpExpose === false", () => {
-    const result = adaptRouteOptions(
-      makeRouteOptions({ config: { mcpExpose: false } }),
-    );
+    const result = adaptRouteOptions(makeRouteOptions({ config: { mcpExpose: false } }));
     assert.deepEqual(result, []);
   });
 
@@ -114,10 +112,21 @@ describe("adaptRouteOptions", () => {
     assert.equal(result[0]?.url, "/api/users");
   });
 
-  it("HEAD method is excluded", () => {
+  it("HEAD method is excluded by default", () => {
     const result = adaptRouteOptions(
       makeRouteOptions({ method: "HEAD" as RouteOptions["method"], url: "/api/users" }),
     );
     assert.deepEqual(result, []);
+  });
+
+  it("HEAD method is included when includeHead:true", () => {
+    const result = adaptRouteOptions(
+      makeRouteOptions({ method: "HEAD" as RouteOptions["method"], url: "/api/users" }),
+      { includeHead: true },
+    );
+    assert.equal(result.length, 1);
+    assert.equal(result[0]?.method, "HEAD");
+    assert.equal(result[0]?.url, "/api/users");
+    assert.equal(result[0]?.framework, "fastify");
   });
 });

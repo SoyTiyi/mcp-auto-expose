@@ -10,7 +10,7 @@ export class ToolRegistry {
       while (this._tools.has(`${name}_${suffix}`)) suffix++;
       const newName = `${name}_${suffix}`;
       process.stderr.write(
-        `[mcp-auto-expose] tool name collision "${name}" — renamed to "${newName}"\n`
+        `[mcp-auto-expose] tool name collision "${name}" — renamed to "${newName}"\n`,
       );
       tool = { ...tool, name: newName };
     }
@@ -18,9 +18,7 @@ export class ToolRegistry {
   }
 
   list(): MCPTool[] {
-    return [...this._tools.values()].sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
+    return [...this._tools.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   clear(): void {

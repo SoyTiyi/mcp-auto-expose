@@ -21,7 +21,12 @@ const TEST_TOOL = {
   name: "get_item",
   description: "Get an item by id",
   inputSchema: TOOL_SCHEMA,
-  _source: { framework: "express" as const, method: "GET" as const, url: "/items/:id", paramMap: { id: "params" as const, tenant_id: "params" as const } },
+  _source: {
+    framework: "express" as const,
+    method: "GET" as const,
+    url: "/items/:id",
+    paramMap: { id: "params" as const, tenant_id: "params" as const },
+  },
 };
 
 type CallCapture = { tool: string; args: unknown; ctx: unknown };
@@ -85,10 +90,16 @@ async function postMcp(
   try {
     parsed = JSON.parse(text);
     return { status: res.status, body: parsed };
-  } catch { /* not plain JSON */ }
+  } catch {
+    /* not plain JSON */
+  }
   const dataLine = text.split("\n").find((l) => l.startsWith("data: "));
   if (dataLine) {
-    try { parsed = JSON.parse(dataLine.slice(6)); } catch { /* leave as text */ }
+    try {
+      parsed = JSON.parse(dataLine.slice(6));
+    } catch {
+      /* leave as text */
+    }
   }
   return { status: res.status, body: parsed };
 }
@@ -97,8 +108,14 @@ async function initializeMcp(baseUrl: string): Promise<void> {
   await postMcp(
     baseUrl,
     {
-      jsonrpc: "2.0", id: 1, method: "initialize",
-      params: { protocolVersion: LATEST_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "test", version: "0" } },
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: LATEST_PROTOCOL_VERSION,
+        capabilities: {},
+        clientInfo: { name: "test", version: "0" },
+      },
     },
     { "Mcp-Method": "initialize" },
   );
@@ -111,8 +128,14 @@ describe("mountMcpExpress — routing", () => {
       const { status, body } = await postMcp(
         url,
         {
-          jsonrpc: "2.0", id: 1, method: "initialize",
-          params: { protocolVersion: LATEST_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "t", version: "0" } },
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: LATEST_PROTOCOL_VERSION,
+            capabilities: {},
+            clientInfo: { name: "t", version: "0" },
+          },
         },
         { "Mcp-Method": "initialize" },
       );
@@ -178,7 +201,9 @@ describe("mountMcpExpress — auth propagation", () => {
       await postMcp(
         url,
         {
-          jsonrpc: "2.0", id: 5, method: "tools/call",
+          jsonrpc: "2.0",
+          id: 5,
+          method: "tools/call",
           params: { name: "get_item", arguments: { id: "x" } },
         },
         { "Mcp-Method": "tools/call", "Mcp-Name": "get_item" },
@@ -199,7 +224,9 @@ describe("mountMcpExpress — Mcp-Param header injection", () => {
       await postMcp(
         url,
         {
-          jsonrpc: "2.0", id: 6, method: "tools/call",
+          jsonrpc: "2.0",
+          id: 6,
+          method: "tools/call",
           params: { name: "get_item", arguments: { id: "abc" } },
         },
         { "Mcp-Method": "tools/call", "Mcp-Name": "get_item", "Mcp-Param-TenantId": "t42" },

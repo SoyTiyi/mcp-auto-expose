@@ -21,7 +21,9 @@ process.stderr.write(`[mcp-client-smoke] Connected to ${BASE_URL}\n`);
 
 // List tools
 const { tools } = await client.listTools();
-process.stderr.write(`[mcp-client-smoke] ${tools.length} tool(s): ${tools.map((t: { name: string }) => t.name).join(", ")}\n`);
+process.stderr.write(
+  `[mcp-client-smoke] ${tools.length} tool(s): ${tools.map((t: { name: string }) => t.name).join(", ")}\n`,
+);
 
 if (tools.length === 0) {
   process.stderr.write("[mcp-client-smoke] ERROR: no tools found\n");
@@ -34,7 +36,9 @@ const callResult = await client.callTool({
   name: firstTool.name,
   arguments: {},
 });
-process.stderr.write(`[mcp-client-smoke] callTool(${firstTool.name}) → ${JSON.stringify(callResult.content)}\n`);
+process.stderr.write(
+  `[mcp-client-smoke] callTool(${firstTool.name}) → ${JSON.stringify(callResult.content)}\n`,
+);
 
 await client.close();
 process.stderr.write("[mcp-client-smoke] OK — all checks passed\n");

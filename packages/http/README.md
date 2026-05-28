@@ -37,7 +37,7 @@ const { router, close } = mountMcpExpress({
   name: "my-api",
   version: "1.0.0",
   tools: handle.tools(),
-  allowedOrigins: ["https://app.example.com"],   // omit or [] to allow any origin (server-to-server)
+  allowedOrigins: ["https://app.example.com"], // omit or [] to allow any origin (server-to-server)
   onToolCall: async (tool, args, ctx) => {
     // ctx.auth     → from req.auth (set by auth middleware)
     // ctx.mcp      → { method, name } from Mcp-Method / Mcp-Name headers
@@ -47,7 +47,7 @@ const { router, close } = mountMcpExpress({
   },
 });
 
-app.use(router);  // mounts POST/GET/DELETE /mcp
+app.use(router); // mounts POST/GET/DELETE /mcp
 app.listen(3000, "127.0.0.1");
 
 process.on("SIGTERM", () => close());
@@ -86,18 +86,18 @@ await fastify.listen({ port: 3000, host: "127.0.0.1" });
 
 ## Options
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `path` | `string` | `"/mcp"` | HTTP path for the MCP endpoint |
-| `allowedOrigins` | `string[]` | `[]` | Allowed `Origin` values. `[]` = no browser clients (server-to-server OK). |
-| `session` | `"stateless" \| "stateful"` | `"stateless"` | Stateless: new transport per request. Stateful: session map keyed by `Mcp-Session-Id`. |
-| `enableJsonResponse` | `boolean` | `false` | Return JSON instead of SSE. Useful for simple request-response clients. |
-| `requireSep2243` | `boolean` | `false` | Enforce `Mcp-Method` / `Mcp-Name` header coherence (SEP-2243). Enable in browser-facing deployments to mitigate CSRF. |
-| `warnOnNonLocalhost` | `boolean` | `true` | Warn to stderr if `HOST` or `BIND_ADDRESS` env is `0.0.0.0`. |
-| `tools` | `MCPTool[]` | required | Tool catalog (from `autoExpose` or manual). |
-| `name` | `string` | required | Server name reported in `initialize`. |
-| `version` | `string` | required | Server version. |
-| `onToolCall` | `OnToolCallHttp` | required | Callback invoked for every `tools/call` request. |
+| Option               | Type                        | Default       | Description                                                                                                           |
+| -------------------- | --------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `path`               | `string`                    | `"/mcp"`      | HTTP path for the MCP endpoint                                                                                        |
+| `allowedOrigins`     | `string[]`                  | `[]`          | Allowed `Origin` values. `[]` = no browser clients (server-to-server OK).                                             |
+| `session`            | `"stateless" \| "stateful"` | `"stateless"` | Stateless: new transport per request. Stateful: session map keyed by `Mcp-Session-Id`.                                |
+| `enableJsonResponse` | `boolean`                   | `false`       | Return JSON instead of SSE. Useful for simple request-response clients.                                               |
+| `requireSep2243`     | `boolean`                   | `false`       | Enforce `Mcp-Method` / `Mcp-Name` header coherence (SEP-2243). Enable in browser-facing deployments to mitigate CSRF. |
+| `warnOnNonLocalhost` | `boolean`                   | `true`        | Warn to stderr if `HOST` or `BIND_ADDRESS` env is `0.0.0.0`.                                                          |
+| `tools`              | `MCPTool[]`                 | required      | Tool catalog (from `autoExpose` or manual).                                                                           |
+| `name`               | `string`                    | required      | Server name reported in `initialize`.                                                                                 |
+| `version`            | `string`                    | required      | Server version.                                                                                                       |
+| `onToolCall`         | `OnToolCallHttp`            | required      | Callback invoked for every `tools/call` request.                                                                      |
 
 ---
 
@@ -108,8 +108,8 @@ await fastify.listen({ port: 3000, host: "127.0.0.1" });
 **Bind to `127.0.0.1`**, not `0.0.0.0`, when serving local tools:
 
 ```ts
-app.listen(3000, "127.0.0.1");           // Express
-fastify.listen({ host: "127.0.0.1" });   // Fastify
+app.listen(3000, "127.0.0.1"); // Express
+fastify.listen({ host: "127.0.0.1" }); // Fastify
 ```
 
 The adapter emits a stderr warning if it detects `HOST=0.0.0.0` or `BIND_ADDRESS=0.0.0.0` in the environment.
@@ -131,14 +131,14 @@ The auth value is propagated to `ctx.auth` in `onToolCall`.
 
 ## Extension: `x-mcp-header` (header-borne parameters)
 
-*This is a project-specific extension, not part of any MCP SEP.*
+_This is a project-specific extension, not part of any MCP SEP._
 
 Mark a tool parameter with `x-mcp-header: true` in its JSON Schema to indicate that a client can supply it via a `Mcp-Param-<Title-Kebab>` HTTP header instead of (or in addition to) the JSON-RPC arguments body.
 
 **Declaring with Zod** (Express/Fastify packages):
 
 ```ts
-import { mcpHeader } from "@mcp-auto-expose/express";  // or "@mcp-auto-expose/fastify"
+import { mcpHeader } from "@mcp-auto-expose/express"; // or "@mcp-auto-expose/fastify"
 import { z } from "zod";
 
 const schema = z.object({
@@ -151,18 +151,18 @@ The `mcpHeader()` wrapper stamps `"x-mcp-header": true` on the generated JSON Sc
 
 **Mapping rule** (snake_case ↔ Title-Kebab-Case):
 
-| Schema key | Header name |
-|---|---|
-| `tenant_id` | `Mcp-Param-Tenant-Id` |
+| Schema key             | Header name                      |
+| ---------------------- | -------------------------------- |
+| `tenant_id`            | `Mcp-Param-Tenant-Id`            |
 | `invoice_external_ref` | `Mcp-Param-Invoice-External-Ref` |
 
 **Merge policy** (header wins on conflict):
 
-| Situation | args result |
-|---|---|
-| Header only | injected into args |
-| Body only | kept as-is |
-| Both match | kept as-is |
+| Situation     | args result                                  |
+| ------------- | -------------------------------------------- |
+| Header only   | injected into args                           |
+| Body only     | kept as-is                                   |
+| Both match    | kept as-is                                   |
 | Both conflict | header value used; warning emitted to stderr |
 
 ---

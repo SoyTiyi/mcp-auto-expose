@@ -110,7 +110,10 @@ describe("autoExpose", () => {
     const tools = handle.tools();
     const names = tools.map((t) => t.name);
     assert.ok(names.includes("list_users"), "list_users should be present");
-    assert.ok(!names.includes("list_posts"), "list_posts should NOT be present (added after eager walk)");
+    assert.ok(
+      !names.includes("list_posts"),
+      "list_posts should NOT be present (added after eager walk)",
+    );
   });
 
   it("_source.framework === 'express' on every tool", () => {
@@ -127,7 +130,9 @@ describe("autoExpose", () => {
     const handle = autoExpose(app, { strictSchema: true });
 
     const router = express.Router();
-    router.get("/users", mcpExpose({ description: "List users" }), (_req: Request, res: Response) => res.json([]));
+    router.get("/users", mcpExpose({ description: "List users" }), (_req: Request, res: Response) =>
+      res.json([]),
+    );
     app.use("/api", router); // intercepted by autoExpose wrapper
 
     const tools = handle.tools();
@@ -146,10 +151,8 @@ describe("autoExpose", () => {
       mcpExpose({ description: "Listar usuarios" }),
       async (_req: Request, res: Response) => res.json([]),
     );
-    router.get(
-      "/admin/secret",
-      mcpExpose({ hide: true }),
-      async (_req: Request, res: Response) => res.json({}),
+    router.get("/admin/secret", mcpExpose({ hide: true }), async (_req: Request, res: Response) =>
+      res.json({}),
     );
     app.use("/api", router);
 

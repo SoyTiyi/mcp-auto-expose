@@ -18,6 +18,7 @@ type ExpressLayer = {
 
 export interface WalkOptions {
   strictSchema?: boolean; // default: true (applied in walk())
+  includeHead?: boolean; // default: false — HEAD excluded to match Fastify behaviour
   basePath?: string; // initial mountPath — ADDITIVE prefix for all discovered URLs
   /** Internal: supplied by autoExpose to enable Express 5.1+ mount path recovery */
   mountRegistry?: WeakMap<object, string>;
@@ -54,13 +55,11 @@ function walk(
   for (const layer of stack) {
     if (layer.route) {
       // Terminal: route registered directly on this layer
-      const paths = Array.isArray(layer.route.path)
-        ? layer.route.path
-        : [layer.route.path];
+      const paths = Array.isArray(layer.route.path) ? layer.route.path : [layer.route.path];
 
       for (const p of paths) {
         const url = joinPath(mountPath, p);
-        const verbs = methodsOf(layer.route.methods, url);
+        const verbs = methodsOf(layer.route.methods, url, opts);
 
         for (const verb of verbs) {
           const key = `${verb} ${url}`;
@@ -102,21 +101,14 @@ function joinPath(parent: string, child: string): string {
   return raw.length > 1 ? raw.replace(/\/$/, "") : raw;
 }
 
-const VALID_METHODS = new Set<string>([
-  "GET",
-  "POST",
-  "PUT",
-  "PATCH",
-  "DELETE",
-  "HEAD",
-  "OPTIONS",
-]);
+const VALID_METHODS = new Set<string>(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
 
-function methodsOf(methods: Record<string, boolean>, url: string): HTTPMethod[] {
+function methodsOf(methods: Record<string, boolean>, url: string, opts: WalkOptions): HTTPMethod[] {
   return Object.keys(methods)
     .filter((m) => methods[m] === true && m !== "_all")
     .map((m) => m.toUpperCase())
     .filter((m): m is HTTPMethod => {
+      if (m === "HEAD" && !opts.includeHead) return false;
       if (VALID_METHODS.has(m)) return true;
       warn("unknown-method", { verb: m, url });
       return false;
@@ -154,10 +146,9 @@ function recoverMountPath(
   if (regexp.fast_slash === true) return "";
 
   // Express 4 canonical regex pattern (from express-list-endpoints)
-  const match =
-    /^\^\\\/(?:\(\?:\(\[\^\\\/]\+\?\)\))?(.*?)\\\/\?\(\?=\\\/\|\$\)/i.exec(
-      regexp.source ?? "",
-    );
+  const match = /^\^\\\/(?:\(\?:\(\[\^\\\/]\+\?\)\))?(.*?)\\\/\?\(\?=\\\/\|\$\)/i.exec(
+    regexp.source ?? "",
+  );
   if (match?.[1]) {
     return `/${match[1].replace(/\\\//g, "/")}`;
   }
@@ -168,9 +159,7 @@ function recoverMountPath(
 
 const SCHEMA_KEY = MCP_EXPOSE_SYMBOL;
 
-function extractSchema(
-  routeStack: Array<{ handle: unknown }>,
-): RouteSchema | undefined {
+function extractSchema(routeStack: Array<{ handle: unknown }>): RouteSchema | undefined {
   let found: RouteSchema | undefined;
   let extra = 0;
 

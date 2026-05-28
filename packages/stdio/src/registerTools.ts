@@ -1,7 +1,4 @@
-import {
-  ListToolsRequestSchema,
-  CallToolRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { MCPTool } from "@mcp-auto-expose/core";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 

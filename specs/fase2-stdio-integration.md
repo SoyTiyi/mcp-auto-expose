@@ -10,6 +10,7 @@
 Conectar la salida del adaptador Fastify de la Fase 1 (`app.mcpAutoExpose.tools(): MCPTool[]`) a una instancia real del servidor MCP usando el transporte local stdio. El proceso resultante expone el catálogo de herramientas via `tools/list` y protege la tubería JSON-RPC stdout de cualquier contaminación por logs del framework huésped.
 
 **Fuera de alcance:**
+
 - Dispatch real de `tools/call` a handlers de Fastify (requiere extender `_source` en core para preservar mapeo flatten→`{params, querystring, body}`). Se implementa en fase posterior.
 - Adaptador Express (Fase 4).
 - Streamable HTTP, SEP-2243, SEP-2549, SEP-414 (Fase 5).
@@ -98,8 +99,8 @@ Métodos parcheados: `log`, `info`, `warn`, `error`, `debug`, `trace`, `dir`, `g
 **Firmas:**
 
 ```ts
-export function installStdoutGuard(): void;   // idempotente
-export function restoreStdoutGuard(): void;   // repone originalConsole (para tests)
+export function installStdoutGuard(): void; // idempotente
+export function restoreStdoutGuard(): void; // repone originalConsole (para tests)
 export function isStdoutGuardInstalled(): boolean;
 ```
 
@@ -122,13 +123,15 @@ export function registerTools({ server, tools, onToolCall }): void {
       async (args) => {
         if (onToolCall) return await onToolCall(tool, args);
         return {
-          content: [{
-            type: "text",
-            text:
-              `[fase2-placeholder] tool "${tool.name}" mapea a ` +
-              `${tool._source.method} ${tool._source.url}. ` +
-              `Invocación real pendiente de fase posterior.`,
-          }],
+          content: [
+            {
+              type: "text",
+              text:
+                `[fase2-placeholder] tool "${tool.name}" mapea a ` +
+                `${tool._source.method} ${tool._source.url}. ` +
+                `Invocación real pendiente de fase posterior.`,
+            },
+          ],
         };
       },
     );
@@ -154,7 +157,9 @@ export async function startStdio(options: StartStdioOptions): Promise<StartStdio
   await server.connect(transport);
 
   return {
-    async close() { await server.close(); },
+    async close() {
+      await server.close();
+    },
   };
 }
 ```
@@ -246,43 +251,51 @@ apps/dev-sandbox/
 ## 4. Plan de tareas (TDD obligatorio: rojo → verde → commit)
 
 ### Tarea 1 — Andamiar `packages/stdio`
+
 - 1.1. Crear `package.json`, `tsconfig.json`, `eslint.config.mjs`, `src/index.ts` vacío.
 - 1.2. `pnpm install` (resuelve `@modelcontextprotocol/sdk` y lo añade al lockfile).
 - 1.3. `pnpm --filter @mcp-auto-expose/stdio check-types`.
 - 1.4. Commit: `chore(stdio): scaffold @mcp-auto-expose/stdio package`.
 
 ### Tarea 2 — `stdoutGuard`
+
 - 2.1. Tests rojos (`stdoutGuard.test.ts`): `console.log("x")` tras `installStdoutGuard()` no escribe nada a stdout; `restoreStdoutGuard()` repone; `installStdoutGuard()` es idempotente (segunda llamada no duplica el parcheado).
 - 2.2. Implementar `stdoutGuard.ts`.
 - 2.3. Verde + commit: `feat(stdio): global console guard redirecting to stderr`.
 
 ### Tarea 3 — `registerTools`
+
 - 3.1. Tests rojos (`registerTools.test.ts`): mock minimal de `McpServer` con spy en `registerTool`; N tools → N llamadas; cada llamada incluye `name`, `description` e `inputSchema`; el handler placeholder incluye `_source.method` y `_source.url` en el texto.
 - 3.2. Implementar `registerTools.ts`.
 - 3.3. Verde + commit: `feat(stdio): dynamic tool registration from MCPTool[]`.
 
 ### Tarea 4 — `startStdio`
+
 - 4.1. Test ligero con mocks de `McpServer` y `StdioServerTransport`: confirma orden `installStdoutGuard` → `new McpServer` → `registerTools` → `connect`.
 - 4.2. Implementar `startStdio.ts`.
 - 4.3. Barrel `src/index.ts` con exports públicos.
 - 4.4. Verde + commit: `feat(stdio): startStdio factory wiring McpServer + StdioServerTransport`.
 
 ### Tarea 5 — Andamiar `apps/dev-sandbox`
+
 - 5.1. Crear `package.json`, `tsconfig.json`, `src/main.ts`.
 - 5.2. `pnpm install`.
 - 5.3. `pnpm --filter dev-sandbox check-types` verde.
 - 5.4. Commit: `chore(dev-sandbox): scaffold sandbox app`.
 
 ### Tarea 6 — Smoke end-to-end y documentación
+
 - 6.1. Verificación manual (ver §5.2).
 - 6.2. `apps/dev-sandbox/README.md` con instrucciones del smoke.
 - 6.3. Commit: `docs(dev-sandbox): stdio smoke test instructions`.
 
 ### Tarea 7 — README de `packages/stdio`
+
 - 7.1. Snippet de uso, nota Pino/Fastify, restricción contractual `process.stdout.write`.
 - 7.2. Commit: `docs(stdio): usage and stdio safety notes`.
 
 ### Tarea 8 — CI/turbo
+
 - 8.1. Verificar si `tsc -b` produce `dist/`. Si sí, añadir `"outputs": ["dist/**"]` a la task `build` en `turbo.json`.
 - 8.2. `pnpm lint` global sin warnings.
 - 8.3. Commit: `chore(turbo): include dist outputs for @mcp-auto-expose/stdio` (si aplica).

@@ -100,13 +100,17 @@ async function postMcp(
   try {
     parsed = JSON.parse(text);
     return { status: res.status, body: parsed };
-  } catch { /* not plain JSON */ }
+  } catch {
+    /* not plain JSON */
+  }
   // SSE format: extract first "data: <json>" line
   const dataLine = text.split("\n").find((l) => l.startsWith("data: "));
   if (dataLine) {
     try {
       parsed = JSON.parse(dataLine.slice(6));
-    } catch { /* leave as text */ }
+    } catch {
+      /* leave as text */
+    }
   }
   return { status: res.status, body: parsed };
 }
@@ -150,7 +154,16 @@ describe("createMcpHttp — origin guard", () => {
     await withServer(opts, async (url) => {
       const { status } = await postMcp(
         url,
-        { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: LATEST_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "t", version: "0" } } },
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: LATEST_PROTOCOL_VERSION,
+            capabilities: {},
+            clientInfo: { name: "t", version: "0" },
+          },
+        },
         { "Mcp-Method": "initialize" },
       );
       assert.notEqual(status, 403);
@@ -168,11 +181,16 @@ describe("createMcpHttp — SEP-2243 guard", () => {
         { "Mcp-Method": "tools/call" },
       );
       assert.equal(status, 400);
-      const parsed = body as { jsonrpc?: string; error?: { code: number; message: string; data?: { reason: string } } };
+      const parsed = body as {
+        jsonrpc?: string;
+        error?: { code: number; message: string; data?: { reason: string } };
+      };
       assert.equal(parsed.jsonrpc, "2.0");
       assert.equal(parsed.error?.code, -32001);
       assert.equal(parsed.error?.message, "HeaderMismatch");
-      assert.ok(typeof parsed.error?.data?.reason === "string" && parsed.error.data.reason.length > 0);
+      assert.ok(
+        typeof parsed.error?.data?.reason === "string" && parsed.error.data.reason.length > 0,
+      );
     });
   });
 
@@ -347,14 +365,14 @@ describe("createMcpHttp — fail-fast and apiBaseUrl", () => {
       version: "0.0.0",
       tools: [TEST_TOOL],
       allowedOrigins: [],
-      apiBaseUrl: "http://127.0.0.1:9", 
+      apiBaseUrl: "http://127.0.0.1:9",
       onToolCall: async (tool) => {
         calls.push(tool.name);
         return { content: [{ type: "text", text: "explicit" }] };
       },
     });
     await assert.doesNotReject(() => handle.close());
-    
+
     assert.equal(calls.length, 0);
   });
 });
@@ -428,7 +446,9 @@ describe("createMcpHttp SEP-2243 default enforcement", () => {
     assert.equal(parsed.id, 7);
     assert.equal(parsed.error?.code, -32001);
     assert.equal(parsed.error?.message, "HeaderMismatch");
-    assert.ok(typeof parsed.error?.data?.reason === "string" && parsed.error.data.reason.length > 0);
+    assert.ok(
+      typeof parsed.error?.data?.reason === "string" && parsed.error.data.reason.length > 0,
+    );
     await handle.close();
   });
 
@@ -439,11 +459,7 @@ describe("createMcpHttp SEP-2243 default enforcement", () => {
       tools: [],
       onToolCall: async () => ({ content: [{ type: "text" as const, text: "" }] }),
     });
-    const req = makeMockReq(
-      "POST",
-      { "content-type": "application/json" },
-      "not-json-object",
-    );
+    const req = makeMockReq("POST", { "content-type": "application/json" }, "not-json-object");
     const res = makeMockRes();
     await handle.handleNodeRequest(req, res);
     const parsed = JSON.parse(res._body ?? "{}") as {
@@ -474,7 +490,11 @@ describe("createMcpHttp SEP-2243 default enforcement", () => {
     // (The SDK transport may fail on a mock socket, but it won't emit -32001.)
     const body = res._body ?? "{}";
     let parsed: Record<string, unknown> = {};
-    try { parsed = JSON.parse(body) as Record<string, unknown>; } catch { /* not json */ }
+    try {
+      parsed = JSON.parse(body) as Record<string, unknown>;
+    } catch {
+      /* not json */
+    }
     const err = parsed["error"] as Record<string, unknown> | undefined;
     assert.notEqual(err?.["code"], -32001);
     await handle.close();
@@ -603,7 +623,10 @@ describe("createMcpHttp — SEP-414 trace context propagation", () => {
       );
       const ctx = capturedCtx[capturedCtx.length - 1];
       assert.ok(ctx, "onToolCall should have been called");
-      assert.equal(ctx.traceContext?.traceparent, "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01");
+      assert.equal(
+        ctx.traceContext?.traceparent,
+        "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+      );
       assert.equal(ctx.traceContext?.tracestate, "rojo=00f067aa0ba902b7");
     });
   });

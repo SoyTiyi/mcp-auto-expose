@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentación
+    url: https://mcp-auto-expose.dev
+    about: Consulta la documentación antes de abrir un issue
+  - name: 💬 Discusiones
+    url: https://github.com/SoyTiyi/mcp-auto-expose/discussions
+    about: Para preguntas generales usa Discussions, no Issues

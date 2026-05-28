@@ -36,7 +36,7 @@ describe("sanitizeToolXMcpHeaders", () => {
     } as Record<string, unknown>;
     const warns: string[] = [];
     sanitizeToolXMcpHeaders("create_invoice", schema, (code) => warns.push(code));
-    const props = (schema["properties"] as Record<string, Record<string, unknown>>);
+    const props = schema["properties"] as Record<string, Record<string, unknown>>;
     assert.equal(props["tenant_id"]?.["x-mcp-header"], "TenantId");
     assert.deepEqual(warns, []);
   });
@@ -48,7 +48,10 @@ describe("sanitizeToolXMcpHeaders", () => {
     } as Record<string, unknown>;
     const warns: string[] = [];
     sanitizeToolXMcpHeaders("t", schema, (code) => warns.push(code));
-    assert.equal((schema["properties"] as Record<string, Record<string, unknown>>)["region"]?.["x-mcp-header"], undefined);
+    assert.equal(
+      (schema["properties"] as Record<string, Record<string, unknown>>)["region"]?.["x-mcp-header"],
+      undefined,
+    );
     assert.deepEqual(warns, ["xmcpheader-invalid-name"]);
   });
 
@@ -59,7 +62,10 @@ describe("sanitizeToolXMcpHeaders", () => {
     } as Record<string, unknown>;
     const warns: string[] = [];
     sanitizeToolXMcpHeaders("t", schema, (code) => warns.push(code));
-    assert.equal((schema["properties"] as Record<string, Record<string, unknown>>)["tags"]?.["x-mcp-header"], undefined);
+    assert.equal(
+      (schema["properties"] as Record<string, Record<string, unknown>>)["tags"]?.["x-mcp-header"],
+      undefined,
+    );
     assert.deepEqual(warns, ["xmcpheader-non-primitive"]);
   });
 

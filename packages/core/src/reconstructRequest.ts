@@ -38,10 +38,7 @@ export function reconstructRequest(
   const headers: Record<string, string> = {};
   const isBodiless = BODILESS_METHODS.has(tool._source.method);
 
-  const properties = tool.inputSchema.properties as Record<
-    string,
-    Record<string, unknown>
-  >;
+  const properties = tool.inputSchema.properties as Record<string, Record<string, unknown>>;
 
   for (const [key, origin] of Object.entries(tool._source.paramMap)) {
     if (!(key in args)) continue;
@@ -80,11 +77,7 @@ export function reconstructRequest(
   }
 
   const querystring = qs.size > 0 ? `?${qs.toString()}` : "";
-  const body = isBodiless
-    ? undefined
-    : Object.keys(bodyObj).length > 0
-      ? bodyObj
-      : undefined;
+  const body = isBodiless ? undefined : Object.keys(bodyObj).length > 0 ? bodyObj : undefined;
 
   return { url, querystring, body, headers };
 }

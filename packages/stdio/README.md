@@ -28,13 +28,13 @@ El proceso queda bloqueado escuchando en `stdin`/`stdout` el protocolo JSON-RPC 
 
 ### `startStdio(options): Promise<StartStdioHandle>`
 
-| Opción | Tipo | Default | Descripción |
-|--------|------|---------|-------------|
-| `name` | `string` | — | Nombre del servidor MCP |
-| `version` | `string` | — | Versión del servidor |
-| `tools` | `MCPTool[]` | — | Array producido por `app.mcpAutoExpose.tools()` |
-| `installGuard` | `boolean` | `true` | Instala el blindaje global `console.*` → stderr |
-| `onToolCall` | función | placeholder | Hook para invocación real de tools (ver Fase siguiente) |
+| Opción         | Tipo        | Default     | Descripción                                             |
+| -------------- | ----------- | ----------- | ------------------------------------------------------- |
+| `name`         | `string`    | —           | Nombre del servidor MCP                                 |
+| `version`      | `string`    | —           | Versión del servidor                                    |
+| `tools`        | `MCPTool[]` | —           | Array producido por `app.mcpAutoExpose.tools()`         |
+| `installGuard` | `boolean`   | `true`      | Instala el blindaje global `console.*` → stderr         |
+| `onToolCall`   | función     | placeholder | Hook para invocación real de tools (ver Fase siguiente) |
 
 **`StartStdioHandle.close()`**: cierra el servidor MCP ordenadamente.
 

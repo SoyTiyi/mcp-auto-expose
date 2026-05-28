@@ -227,8 +227,7 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
   async function makeTransport(): Promise<StreamableHTTPServerTransport> {
     const srv = session === "stateful" ? statefulServer! : setupServer();
     const t = new StreamableHTTPServerTransport({
-      sessionIdGenerator:
-        session === "stateful" ? (sessionIdGenerator ?? randomUUID) : undefined,
+      sessionIdGenerator: session === "stateful" ? (sessionIdGenerator ?? randomUUID) : undefined,
       enableJsonResponse,
     });
     await srv.connect(t);
@@ -242,10 +241,7 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
     }
 
     // 1. Origin guard
-    const originResult = checkOrigin(
-      req.headers["origin"] as string | undefined,
-      allowedOrigins,
-    );
+    const originResult = checkOrigin(req.headers["origin"] as string | undefined, allowedOrigins);
     if (!originResult.ok) {
       replyJson(res, 403, { error: "forbidden" });
       return;
@@ -291,13 +287,17 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
           if (session === "stateless") {
             transport.close().catch(() => {});
           }
-          replyHeaderMismatch(res, req.body, sep2243Result.detail ?? sep2243Result.reason ?? "Validation failed");
+          replyHeaderMismatch(
+            res,
+            req.body,
+            sep2243Result.detail ?? sep2243Result.reason ?? "Validation failed",
+          );
           return;
         }
       }
 
-      const mcpMethod = req.headers["mcp-method"] as string ?? "";
-      const mcpName = req.headers["mcp-name"] as string ?? "";
+      const mcpMethod = (req.headers["mcp-method"] as string) ?? "";
+      const mcpName = (req.headers["mcp-name"] as string) ?? "";
 
       // SEP-2243 Mcp-Param-* coherence check (only for tools/call with a known tool).
       // Fails fast with JSON-RPC -32001 / HTTP 400 before dispatching into the SDK.
@@ -306,8 +306,8 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
         const tool = tools.find((t) => t.name === mcpName);
         if (tool) {
           const args =
-            (req.body as { params?: { arguments?: Record<string, unknown> } } | null)
-              ?.params?.arguments ?? {};
+            (req.body as { params?: { arguments?: Record<string, unknown> } } | null)?.params
+              ?.arguments ?? {};
           const merge = validateAndMergeHeaderParams(
             tool.inputSchema as unknown as Record<string, unknown>,
             args,
@@ -323,10 +323,7 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
           // Collect props whose value came from a header (not the body) so callbacks
           // can distinguish header-injected from body-supplied params.
           for (const [k, v] of Object.entries(merge.args)) {
-            if (
-              typeof v === "string" &&
-              !Object.prototype.hasOwnProperty.call(args, k)
-            ) {
+            if (typeof v === "string" && !Object.prototype.hasOwnProperty.call(args, k)) {
               headerParams[k] = v;
             }
           }
@@ -362,12 +359,20 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
           if (sid && typeof sid === "string") {
             sessionMap.set(sid, transport);
           }
-          return origWriteHead(statusCode, reasonOrHeaders as string, headers as Record<string, string>);
+          return origWriteHead(
+            statusCode,
+            reasonOrHeaders as string,
+            headers as Record<string, string>,
+          );
         };
       }
 
       await httpContextStorage.run(ctx, () =>
-        transport.handleRequest(req as Parameters<typeof transport.handleRequest>[0], res, req.body),
+        transport.handleRequest(
+          req as Parameters<typeof transport.handleRequest>[0],
+          res,
+          req.body,
+        ),
       );
 
       if (session === "stateless") {
@@ -388,7 +393,11 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
       };
 
       await httpContextStorage.run(ctx, () =>
-        transport.handleRequest(req as Parameters<typeof transport.handleRequest>[0], res, undefined),
+        transport.handleRequest(
+          req as Parameters<typeof transport.handleRequest>[0],
+          res,
+          undefined,
+        ),
       );
 
       if (session === "stateless") {

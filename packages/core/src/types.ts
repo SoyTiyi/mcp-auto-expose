@@ -1,11 +1,4 @@
-export type HTTPMethod =
-  | "GET"
-  | "POST"
-  | "PUT"
-  | "PATCH"
-  | "DELETE"
-  | "HEAD"
-  | "OPTIONS";
+export type HTTPMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
 
 export type ParamOrigin = "params" | "querystring" | "body";
 
@@ -26,7 +19,7 @@ export interface RouteSchema {
 }
 
 export interface RouteDescriptor {
-  framework: "fastify" | "express";
+  framework: string;
   method: HTTPMethod;
   url: string;
   schema?: RouteSchema;
