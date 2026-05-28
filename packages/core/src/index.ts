@@ -18,3 +18,5 @@ export type { ReconstructedRequest } from "./reconstructRequest.js";
 
 export { makeHttpCaller } from "./httpCaller.js";
 export type { OnToolCall, CallToolResult, HttpCallerOptions } from "./httpCaller.js";
+
+export type { FrameworkAdapter } from "./adapter.js";
