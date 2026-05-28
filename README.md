@@ -1,16 +1,16 @@
 # mcp-auto-expose
 
-Expone automáticamente los endpoints de una API REST (Fastify / Express) como herramientas MCP.
-Cero configuración manual: la librería inspecciona el enrutador del framework y registra las tools en un servidor MCP, listo para ser consumido por agentes LLM.
+Automatically exposes REST API endpoints (Fastify / Express) as MCP tools.
+Zero manual configuration: the library introspects the framework router and registers tools in an MCP server, ready to be consumed by LLM agents.
 
-Protocol: **MCP 2025-11-25** | SEPs: **2243** (obligatorio) · **2549** (caché opcional) · **414** (W3C Trace Context)
+Protocol: **MCP 2025-11-25** | SEPs: **2243** (required) · **2549** (optional cache) · **414** (W3C Trace Context)
 
 ---
 
-## Instalación
+## Installation
 
 ```sh
-# Fastify + stdio (local, sin red)
+# Fastify + stdio (local, no network)
 pnpm add @mcp-auto-expose/fastify @mcp-auto-expose/stdio
 
 # Express + Streamable HTTP
@@ -43,7 +43,7 @@ app.post(
 
 await app.listen({ port: 3000, host: "127.0.0.1" });
 
-// Expone las tools vía MCP stdio para agentes locales
+// Expose tools via MCP stdio for local agents
 const tools = app.mcpAutoExpose.tools();
 await startStdio({ name: "my-server", version: "1.0.0", tools });
 ```
@@ -77,61 +77,59 @@ const { router: mcpRouter } = mountMcpExpress({
 app.use(mcpRouter);
 
 app.listen(3000, "127.0.0.1");
-// MCP endpoint disponible en http://127.0.0.1:3000/mcp
+// MCP endpoint available at http://127.0.0.1:3000/mcp
 ```
 
 ---
 
----
+## Packages
 
-## Paquetes del monorepo
-
-| Paquete                    | Descripción                                                                         |
+| Package                    | Description                                                                         |
 | -------------------------- | ----------------------------------------------------------------------------------- |
-| `@mcp-auto-expose/core`    | Motor de auto-descubrimiento: `generateToolName`, `flattenSchema`, `makeHttpCaller` |
-| `@mcp-auto-expose/fastify` | Plugin Fastify con `onRoute` hook                                                   |
-| `@mcp-auto-expose/express` | Walker recursivo `app._router.stack` + decoradores `mcpExpose` / `mcpHeader`        |
-| `@mcp-auto-expose/stdio`   | Transporte stdio con `stdoutGuard` (redirige `console.*` → stderr)                  |
-| `@mcp-auto-expose/http`    | Streamable HTTP (POST+SSE); binders para Express y Fastify                          |
+| `@mcp-auto-expose/core`    | Auto-discovery engine: `generateToolName`, `flattenSchema`, `makeHttpCaller`        |
+| `@mcp-auto-expose/fastify` | Fastify plugin with `onRoute` hook                                                  |
+| `@mcp-auto-expose/express` | Recursive `app._router.stack` walker + `mcpExpose` / `mcpHeader` decorators         |
+| `@mcp-auto-expose/stdio`   | stdio transport with `stdoutGuard` (redirects `console.*` → stderr)                 |
+| `@mcp-auto-expose/http`    | Streamable HTTP (POST+SSE); binders for Express and Fastify                         |
 
 ---
 
-## Estado
+## Status
 
-| Característica                               | Estado                                     |
+| Feature                                      | Status                                     |
 | -------------------------------------------- | ------------------------------------------ |
-| Protocolo MCP                                | `2025-11-25`                               |
-| SEP-2243 headers obligatorios                | Implementado (default on)                  |
-| SEP-2549 cache hints (`ttlMs`, `cacheScope`) | Implementado (opt-in via `toolsListCache`) |
-| SEP-414 W3C Trace Context → backend          | Implementado                               |
-| Invocación real de ruta backend              | Implementado (`makeHttpCaller`)            |
+| MCP Protocol                                 | `2025-11-25`                               |
+| SEP-2243 required headers                    | Implemented (default on)                  |
+| SEP-2549 cache hints (`ttlMs`, `cacheScope`) | Implemented (opt-in via `toolsListCache`) |
+| SEP-414 W3C Trace Context → backend          | Implemented                               |
+| Real backend route invocation                | Implemented (`makeHttpCaller`)            |
 
 ---
 
-## Desarrollo
+## Development
 
 ```sh
-pnpm dev                         # todos los paquetes en modo watch
-pnpm build                       # compilar todo
-pnpm test                        # tests de todos los paquetes
-pnpm lint                        # lint con ESLint
-pnpm check-types                 # type-check con tsc
+pnpm dev                         # all packages in watch mode
+pnpm build                       # compile everything
+pnpm test                        # tests for all packages
+pnpm lint                        # lint with ESLint
+pnpm check-types                 # type-check with tsc
 
-# Smoke de integración:
+# Integration smoke test:
 node --import tsx apps/dev-sandbox/src/http-express-main.ts &
 node --import tsx apps/dev-sandbox/src/http-client-smoke.ts
 ```
 
 ---
 
-## Patrocinadores
+## Sponsors
 
-¿Tu empresa depende de `mcp-auto-expose`? Considera patrocinar el proyecto
-para garantizar su mantenimiento y desarrollo continuo.
+Does your company depend on `mcp-auto-expose`? Consider sponsoring the project
+to ensure its continued maintenance and development.
 
 [![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-❤-ea4aaa?logo=github)](https://github.com/sponsors/SoyTiyi)
 [![Polar.sh](https://img.shields.io/badge/Polar.sh-Sponsor-blue?logo=polar)](https://polar.sh/mcp-auto-expose)
 
 ---
 
-MIT License — ver [LICENSE](LICENSE)
+MIT License — see [LICENSE](LICENSE)

@@ -1,30 +1,30 @@
-# Política de Seguridad
+# Security Policy
 
-## Versiones con soporte
+## Supported Versions
 
-| Versión | Soporte   |
-| ------- | --------- |
-| 0.1.x   | ✅ Activa |
+| Version | Support    |
+| ------- | ---------- |
+| 0.1.x   | ✅ Active  |
 
-## Reportar una vulnerabilidad
+## Reporting a Vulnerability
 
-**NO abras un issue público para reportar vulnerabilidades de seguridad.**
+**Do NOT open a public issue to report security vulnerabilities.**
 
-Envía un email a: santiago.marmartinez@gmail.com  
-Asunto: `[SECURITY] mcp-auto-expose - descripción breve`
+Send an email to: santiago.marmartinez@gmail.com
+Subject: `[SECURITY] mcp-auto-expose - brief description`
 
-Incluye:
+Include:
 
-- Descripción de la vulnerabilidad
-- Pasos para reproducirla
-- Impacto potencial
-- Solución propuesta (si tienes una)
+- Description of the vulnerability
+- Steps to reproduce it
+- Potential impact
+- Proposed fix (if you have one)
 
-## Proceso
+## Process
 
-| Etapa              | Plazo                      |
-| ------------------ | -------------------------- |
-| Acuse de recibo    | 48 horas                   |
-| Evaluación         | 5 días hábiles             |
-| Fix y release      | ≤90 días                   |
-| Disclosure público | Coordinado después del fix |
+| Stage               | Timeline                    |
+| ------------------- | --------------------------- |
+| Acknowledgement     | 48 hours                    |
+| Assessment          | 5 business days             |
+| Fix and release     | ≤90 days                    |
+| Public disclosure   | Coordinated after the fix   |

@@ -1,17 +1,17 @@
 # dev-sandbox
 
-Aplicación de prueba que compone el adaptador Fastify de la Fase 1 con el transporte stdio de la Fase 2.
+Test application that composes the Phase 1 Fastify adapter with the Phase 2 stdio transport.
 
-## Uso
+## Usage
 
 ```sh
-# Desde la raíz del monorepo:
+# From the monorepo root:
 pnpm --filter dev-sandbox dev
 ```
 
-El proceso queda escuchando en `stdin`. Cualquier cliente MCP puede conectarse lanzándolo como subproceso.
+The process listens on `stdin`. Any MCP client can connect by launching it as a subprocess.
 
-## Verificación smoke manual
+## Manual smoke verification
 
 ```sh
 printf '%s\n%s\n' \
@@ -21,26 +21,26 @@ printf '%s\n%s\n' \
   2>sandbox.stderr.log
 ```
 
-**Salida esperada en stdout** (dos líneas JSON-RPC):
+**Expected stdout** (two JSON-RPC lines):
 
-1. Respuesta `initialize` con `serverInfo.name: "dev-sandbox"` y `capabilities.tools: {}`.
-2. Respuesta `tools/list` con 3 tools: `list_users`, `get_users_by_id`, `create_users`.
+1. `initialize` response with `serverInfo.name: "dev-sandbox"` and `capabilities.tools: {}`.
+2. `tools/list` response with 3 tools: `list_users`, `get_users_by_id`, `create_users`.
 
-**Verificación del blindaje stdout** — cualquier `console.log` que el código host emita **antes** de `startStdio()` escapa al stdout. Después de que `startStdio()` instala el guard, todo `console.*` se redirige a stderr. Para comprobarlo:
+**stdout guard verification** — any `console.log` emitted by host code **before** `startStdio()` escapes to stdout. After `startStdio()` installs the guard, all `console.*` is redirected to stderr. To verify:
 
 ```sh
-# Añadir console.log("RUIDO") en main.ts DESPUÉS de await startStdio(...)
-# y verificar que stdout no contiene "RUIDO" pero sandbox.stderr.log sí.
+# Add console.log("NOISE") in main.ts AFTER await startStdio(...)
+# and verify that stdout does not contain "NOISE" but sandbox.stderr.log does.
 ```
 
-## Nota sobre Fastify logger
+## Note on Fastify logger
 
-En contexto stdio, el logger de Fastify debe apuntar a `stderr`:
+In stdio context, the Fastify logger must point to `stderr`:
 
 ```ts
 const app = Fastify({ logger: { stream: process.stderr } });
-// o deshabilitar completamente:
+// or disable completely:
 const app = Fastify({ logger: false });
 ```
 
-Pino escribe a `stdout` por defecto — no hacerlo contaminaría la tubería JSON-RPC.
+Pino writes to `stdout` by default — failing to configure this would contaminate the JSON-RPC pipe.

@@ -1,82 +1,82 @@
-# Fase 4 — Transporte Streamable HTTP y Autenticación
+# Phase 4 — Streamable HTTP Transport and Authentication
 
-> **Estado:** Aprobado — implementación en curso.
-> **Metodología:** Spec-Driven Development (SDD).
-> **Anclaje al documento principal:** `docs/principal-document.txt` L77–L118 (Streamable HTTP, SEP-2243, defensas DNS rebinding) y L192–L202 (Fase 5 del roadmap del producto).
-> **Predecesoras aprobadas:** Fase 1 (Fastify), Fase 2 (stdio), Fase 3 (Express).
+> **Status:** Approved — implementation in progress.
+> **Methodology:** Spec-Driven Development (SDD).
+> **Principal document anchor:** `docs/principal-document.txt` L77–L118 (Streamable HTTP, SEP-2243, DNS rebinding defenses) and L192–L202 (Phase 5 of product roadmap).
+> **Approved predecessors:** Phase 1 (Fastify), Phase 2 (stdio), Phase 3 (Express).
 
 ---
 
 ## Context
 
-La Fase 3 entregó adapters Express y Fastify que extraen `MCPTool[]` en memoria sin montar ningún endpoint. La única salida MCP existente hoy va por stdio (`@mcp-auto-expose/stdio`), apta para hosts locales (Claude Desktop, Cursor) pero incapaz de soportar despliegues remotos multi-cliente.
+Phase 3 delivered Express and Fastify adapters that extract `MCPTool[]` in memory without mounting any endpoint. The only existing MCP output today goes through stdio (`@mcp-auto-expose/stdio`), suitable for local hosts (Claude Desktop, Cursor) but unable to support remote multi-client deployments.
 
-La Fase 4 cierra el roadmap del documento principal habilitando **transporte Streamable HTTP** sobre `StreamableHTTPServerTransport` del SDK `@modelcontextprotocol/sdk` 1.29.0, en cumplimiento literal de:
+Phase 4 closes the principal document roadmap by enabling **Streamable HTTP transport** over `StreamableHTTPServerTransport` from SDK `@modelcontextprotocol/sdk` 1.29.0, in literal compliance with:
 
-- **Endpoint único HTTP** que sirva POST (JSON-RPC) y GET (SSE) sobre el mismo path (`docs/principal-document.txt:81-83`).
-- **SEP-2243**: cabeceras `Mcp-Method` y `Mcp-Name` obligatorias y coherentes con el body JSON-RPC; rechazo incondicional si discrepan (`:88-91, :202`).
-- **Defensas contra DNS rebinding**: validación de `Origin` con whitelist y `403` ante discrepancia; bind a `127.0.0.1` (responsabilidad documentada del usuario) (`:116-117`).
-- **Autenticación delegada al andamiaje moderno**: Bearer/API keys/OAuth 2.0 (`:118`). Decisión arquitectónica nuestra: el adapter NO valida tokens; delega a middlewares nativos del framework anfitrión (Passport, Fastify auth plugins, etc.).
+- **Single HTTP endpoint** serving POST (JSON-RPC) and GET (SSE) on the same path (`docs/principal-document.txt:81-83`).
+- **SEP-2243**: `Mcp-Method` and `Mcp-Name` headers mandatory and consistent with the JSON-RPC body; unconditional rejection if they diverge (`:88-91, :202`).
+- **DNS rebinding defenses**: `Origin` validation with whitelist and `403` on mismatch; bind to `127.0.0.1` (user-documented responsibility) (`:116-117`).
+- **Authentication delegated to modern scaffolding**: Bearer/API keys/OAuth 2.0 (`:118`). Our architectural decision: the adapter does NOT validate tokens; it delegates to the host framework's native middlewares (Passport, Fastify auth plugins, etc.).
 
-Resultado esperado: el usuario puede pasar de stdio a Streamable HTTP cambiando un único paquete de salida, conservando el mismo array `MCPTool[]` y el mismo callback `onToolCall`.
-
----
-
-## 1. Objetivo
-
-Construir un paquete framework-agnóstico `@mcp-auto-expose/http` que monta un endpoint MCP Streamable HTTP único en una aplicación Node anfitriona, más dos sub-binders idiomáticos (`/express`, `/fastify`). El paquete:
-
-1. Reutiliza `StreamableHTTPServerTransport` del SDK 1.29.0.
-2. Valida cabeceras SEP-2243 antes de ceder el control al SDK.
-3. Aplica whitelist de `Origin` configurable.
-4. Soporta la extensión **`x-mcp-header`** definida en SEP-2243 Final para parámetros transportados como `Mcp-Param-{Name}`.
-5. **No** implementa autenticación; documenta el patrón de delegación.
-6. Mantiene paridad de catálogo con stdio (mismos `MCPTool`, mismo `onToolCall`).
+Expected result: the user can switch from stdio to Streamable HTTP by changing a single output package, keeping the same `MCPTool[]` array and the same `onToolCall` callback.
 
 ---
 
-## 2. Arquitectura
+## 1. Objective
 
-### 2.1 Paquete nuevo
+Build a framework-agnostic `@mcp-auto-expose/http` package that mounts a single MCP Streamable HTTP endpoint in a Node host application, plus two idiomatic sub-binders (`/express`, `/fastify`). The package:
+
+1. Reuses `StreamableHTTPServerTransport` from SDK 1.29.0.
+2. Validates SEP-2243 headers before handing control to the SDK.
+3. Applies a configurable `Origin` whitelist.
+4. Supports the **`x-mcp-header`** extension defined in SEP-2243 Final for parameters transported as `Mcp-Param-{Name}`.
+5. Does **not** implement authentication; documents the delegation pattern.
+6. Maintains catalog parity with stdio (same `MCPTool`, same `onToolCall`).
+
+---
+
+## 2. Architecture
+
+### 2.1 New package
 
 `packages/http` — `@mcp-auto-expose/http`.
 
-Exporta tres entradas:
+Exports three entry points:
 
-| Subpath                         | Propósito                                                        |
+| Subpath                         | Purpose                                                          |
 | ------------------------------- | ---------------------------------------------------------------- |
-| `@mcp-auto-expose/http`         | Factory framework-agnóstica `createMcpHttp` + tipos compartidos. |
-| `@mcp-auto-expose/http/express` | Binder `mountMcpExpress` (devuelve `RequestHandler` + `Router`). |
+| `@mcp-auto-expose/http`         | Framework-agnostic factory `createMcpHttp` + shared types.      |
+| `@mcp-auto-expose/http/express` | Binder `mountMcpExpress` (returns `RequestHandler` + `Router`). |
 | `@mcp-auto-expose/http/fastify` | Binder `mcpFastifyPlugin` (FastifyPluginAsync).                  |
 
-### 2.2 Cambios en paquetes existentes
+### 2.2 Changes in existing packages
 
-- `packages/core`: sin cambios estructurales en `MCPTool`. La invocación sigue siendo "out-of-band" via callback `onToolCall` (mismo contrato que stdio).
-- `packages/express`: añade helper `mcpHeader(zodSchema)` y modifica el converter `zodConvert.ts` para preservar la anotación `"x-mcp-header": true` en el JSON Schema producido.
-- `packages/fastify`: añade helper `mcpHeader(zodSchema)` simétrico y replica el preservado de la anotación en `adaptRouteOptions.ts`.
-- `packages/stdio`: sin cambios. Sigue dispatching por callback. Su contrato `(tool, args) => result` es subset del HTTP `(tool, args, ctx) => result` — un mismo callback funciona en ambos transports.
+- `packages/core`: no structural changes to `MCPTool`. Invocation remains "out-of-band" via `onToolCall` callback (same contract as stdio).
+- `packages/express`: adds helper `mcpHeader(zodSchema)` and modifies `zodConvert.ts` to preserve the `"x-mcp-header": true` annotation in the produced JSON Schema.
+- `packages/fastify`: adds symmetric `mcpHeader(zodSchema)` helper and replicates annotation preservation in `adaptRouteOptions.ts`.
+- `packages/stdio`: no changes. Continues dispatching via callback. Its contract `(tool, args) => result` is a subset of HTTP `(tool, args, ctx) => result` — the same callback works on both transports.
 
-### 2.3 Decisiones arquitectónicas confirmadas con el usuario
+### 2.3 Architectural decisions confirmed with user
 
-| Decisión                       | Resultado                                                                                                                                      |
+| Decision                       | Outcome                                                                                                                                        |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Endpoint**                   | Path único (default `/mcp`, configurable) sirviendo POST + GET + DELETE. Alinea con `docs/principal-document.txt:81` ("un único punto final"). |
-| **Ubicación**                  | Paquete nuevo `@mcp-auto-expose/http` con sub-binders. Preserva el invariante de Fase 3.                                                       |
-| **Declaración `x-mcp-header`** | Helper Zod `mcpHeader(z.string())` que stampa la anotación en el JSON Schema.                                                                  |
+| **Endpoint**                   | Single path (default `/mcp`, configurable) serving POST + GET + DELETE. Aligns with `docs/principal-document.txt:81` ("a single endpoint"). |
+| **Location**                   | New package `@mcp-auto-expose/http` with sub-binders. Preserves Phase 3 invariant.                                                            |
+| **`x-mcp-header` declaration** | Zod helper `mcpHeader(z.string())` that stamps the annotation into the JSON Schema.                                                            |
 
-### 2.4 Decisiones técnicas adicionales
+### 2.4 Additional technical decisions
 
-- **Dispatch**: callback explícito `onToolCall(tool, args, ctx)`. La re-invocación virtual de rutas Express/Fastify queda fuera de alcance (futura Fase 4.1 opcional).
-- **Sesiones**: stateless por default (`sessionIdGenerator: undefined`), stateful opt-in vía `options.session: "stateful"`.
-- **Auth**: delegada al framework anfitrión. El adapter propaga `req.auth` (si existe) a `ctx.auth`.
-- **Defensa Origin**: middleware integrado. Default `allowedOrigins: []` permite peticiones **sin** Origin (clientes CLI, server-to-server) con warning a stderr; rechaza con `403` cualquier Origin presente que no matchee la whitelist.
-- **Localhost bind**: no enforced por el adapter (es responsabilidad de `app.listen()`). El adapter emite warning a stderr si detecta `HOST=0.0.0.0` o `BIND_ADDRESS=0.0.0.0` en env. Documentado en README.
+- **Dispatch**: explicit callback `onToolCall(tool, args, ctx)`. Virtual re-invocation of Express/Fastify routes is out of scope (optional future Phase 4.1).
+- **Sessions**: stateless by default (`sessionIdGenerator: undefined`), stateful opt-in via `options.session: "stateful"`.
+- **Auth**: delegated to the host framework. The adapter propagates `req.auth` (if present) to `ctx.auth`.
+- **Origin defense**: integrated middleware. Default `allowedOrigins: []` allows requests **without** Origin (CLI clients, server-to-server) with warning to stderr; rejects with `403` any present Origin that does not match the whitelist.
+- **Localhost bind**: not enforced by the adapter (it is `app.listen()` responsibility). The adapter emits a warning to stderr if it detects `HOST=0.0.0.0` or `BIND_ADDRESS=0.0.0.0` in env. Documented in README.
 
 ---
 
-## 3. Diseño técnico detallado
+## 3. Detailed technical design
 
-### 3.1 API pública — `packages/http/src/index.ts`
+### 3.1 Public API — `packages/http/src/index.ts`
 
 ```ts
 import type { Server } from "@modelcontextprotocol/sdk/server";
@@ -84,13 +84,13 @@ import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/se
 import type { MCPTool } from "@mcp-auto-expose/core";
 
 export interface McpHttpContext {
-  /** Cabeceras crudas (lowercase keys). */
+  /** Raw headers (lowercase keys). */
   headers: Record<string, string | string[] | undefined>;
-  /** AuthInfo propagado desde req.auth por middlewares previos. */
+  /** AuthInfo propagated from req.auth by previous middlewares. */
   auth?: unknown;
-  /** Subset SEP-2243 proyectado. */
+  /** SEP-2243 projected subset. */
   mcp: { method: string; name: string };
-  /** Args extraídos de Mcp-Param-* (ver §3.4). */
+  /** Args extracted from Mcp-Param-* (see §3.4). */
   headerParams: Record<string, string>;
 }
 
@@ -103,21 +103,21 @@ export type OnToolCallHttp = (
 export interface McpHttpOptions {
   /** Default "/mcp". */
   path?: string;
-  /** Whitelist Origin. Default []: requiere Origin ausente o opt-in explícito. */
+  /** Origin whitelist. Default []: requires Origin absent or explicit opt-in. */
   allowedOrigins?: string[];
   /** Default "stateless". */
   session?: "stateful" | "stateless";
-  /** Default randomUUID si session=stateful. */
+  /** Default randomUUID if session=stateful. */
   sessionIdGenerator?: () => string;
-  /** Default false: SDK responde con SSE. true ⇒ JSON puro. */
+  /** Default false: SDK responds with SSE. true ⇒ pure JSON. */
   enableJsonResponse?: boolean;
-  /** Default true: warning a stderr si bind=0.0.0.0. */
+  /** Default true: warning to stderr if bind=0.0.0.0. */
   warnOnNonLocalhost?: boolean;
   tools: MCPTool[];
   name: string;
   version: string;
   onToolCall: OnToolCallHttp;
-  /** Inyección controlada para tests. */
+  /** Controlled injection for tests. */
   _deps?: { server?: Server; transport?: StreamableHTTPServerTransport };
 }
 
@@ -132,7 +132,7 @@ export interface McpHttpHandle {
 export function createMcpHttp(options: McpHttpOptions): McpHttpHandle;
 ```
 
-### 3.2 Binder Express — `packages/http/src/express.ts`
+### 3.2 Express binder — `packages/http/src/express.ts`
 
 ```ts
 import type { RequestHandler, Router } from "express";
@@ -140,14 +140,14 @@ import type { McpHttpOptions } from "./index.js";
 
 export interface MountMcpExpressResult {
   middleware: RequestHandler; // app.all('/mcp', mw)
-  router: Router; // app.use(router); pre-monta path
+  router: Router; // app.use(router); pre-mounts path
   close(): Promise<void>;
 }
 
 export function mountMcpExpress(opts: McpHttpOptions): MountMcpExpressResult;
 ```
 
-### 3.3 Binder Fastify — `packages/http/src/fastify.ts`
+### 3.3 Fastify binder — `packages/http/src/fastify.ts`
 
 ```ts
 import type { FastifyPluginAsync, FastifyPluginOptions } from "fastify";
@@ -157,9 +157,9 @@ export type McpFastifyPluginOptions = McpHttpOptions & FastifyPluginOptions;
 export const mcpFastifyPlugin: FastifyPluginAsync<McpFastifyPluginOptions>;
 ```
 
-### 3.4 Pipeline `x-mcp-header` (definido en SEP-2243 Final)
+### 3.4 `x-mcp-header` pipeline (defined in SEP-2243 Final)
 
-#### 3.4.1 Declaración por el usuario
+#### 3.4.1 User declaration
 
 ```ts
 import { z } from "zod";
@@ -181,9 +181,9 @@ router.post(
 );
 ```
 
-#### 3.4.2 Conversión Zod → JSON Schema
+#### 3.4.2 Zod → JSON Schema conversion
 
-`mcpHeader<T extends ZodTypeAny>(zod: T): T` stampa un marker `__mcpHeader = true` sobre el schema Zod (vía `WeakSet` interno para no mutar el objeto). El converter en `packages/express/src/zodConvert.ts` detecta el marker y produce:
+`mcpHeader<T extends ZodTypeAny>(zod: T): T` stamps a marker `__mcpHeader = true` on the Zod schema (via internal `WeakSet` to avoid mutation). The converter in `packages/express/src/zodConvert.ts` detects the marker and produces:
 
 ```json
 {
@@ -200,44 +200,44 @@ router.post(
 }
 ```
 
-La propiedad **permanece visible al LLM** (puede pasarla como argumento normal). La anotación informa al adapter HTTP qué params puede recoger también de cabeceras.
+The property **remains visible to the LLM** (it can pass it as a normal argument). The annotation informs the HTTP adapter which params can also be collected from headers.
 
-#### 3.4.3 Naming verbatim del header
+#### 3.4.3 Verbatim header naming
 
-El valor del campo `x-mcp-header` se usa **verbatim** como segmento del header HTTP — sin kebabize ni transformación adicional.
+The value of the `x-mcp-header` field is used **verbatim** as the HTTP header segment — without kebabization or additional transformation.
 
 - `"x-mcp-header": "TenantId"` ⇄ `Mcp-Param-TenantId`
 - `"x-mcp-header": "Region"` ⇄ `Mcp-Param-Region`
 
-Constraints del valor (SEP-2243 §"Custom Headers from Tool Parameters"):
+Value constraints (SEP-2243 §"Custom Headers from Tool Parameters"):
 
-- No vacío.
-- Solo ASCII (excluyendo espacio y `:`).
-- Case-insensitivamente único entre todos los `x-mcp-header` del mismo `inputSchema`.
-- Solo aplicable a propiedades de tipo primitivo (`string`, `number`, `boolean`).
+- Non-empty.
+- ASCII only (excluding space and `:`).
+- Case-insensitively unique among all `x-mcp-header` values in the same `inputSchema`.
+- Only applicable to primitive-type properties (`string`, `number`, `boolean`).
 
-#### 3.4.4 Política de merge body ↔ header
+#### 3.4.4 Body ↔ header merge policy
 
-| Caso        | body.args         | header  | args resultante   | Side effect                          |
-| ----------- | ----------------- | ------- | ----------------- | ------------------------------------ |
-| Solo body   | `{tenant_id:"a"}` | ausente | `{tenant_id:"a"}` | —                                    |
-| Solo header | `{}`              | `"a"`   | `{tenant_id:"a"}` | `ctx.headerParams.tenant_id="a"`     |
-| Coinciden   | `{tenant_id:"a"}` | `"a"`   | `{tenant_id:"a"}` | —                                    |
-| Discrepan   | `{tenant_id:"a"}` | `"b"`   | `{tenant_id:"b"}` | warn `header-body-mismatch` a stderr |
+| Case         | body.args         | header  | resulting args    | Side effect                          |
+| ------------ | ----------------- | ------- | ----------------- | ------------------------------------ |
+| Body only    | `{tenant_id:"a"}` | absent  | `{tenant_id:"a"}` | —                                    |
+| Header only  | `{}`              | `"a"`   | `{tenant_id:"a"}` | `ctx.headerParams.tenant_id="a"`     |
+| Match        | `{tenant_id:"a"}` | `"a"`   | `{tenant_id:"a"}` | —                                    |
+| Mismatch     | `{tenant_id:"a"}` | `"b"`   | `{tenant_id:"b"}` | warn `header-body-mismatch` to stderr |
 
-"Header gana" porque la spec posiciona las cabeceras como capa de routing del edge; un proxy/gateway puede haberlas inyectado autoritativamente. Documentado en README.
+"Header wins" because the spec positions headers as the edge routing layer; a proxy/gateway may have injected them authoritatively. Documented in README.
 
-#### 3.4.5 Encoding sentinel Base64 para valores no representables como ASCII plano
+#### 3.4.5 Base64 sentinel encoding for values not representable as plain ASCII
 
-El cliente codifica el valor del parámetro como Base64 estándar (RFC 4648 §4, con padding `=`) envuelto en el sentinel `=?base64?<valor>?=` cuando el string serializado:
+The client encodes the parameter value as standard Base64 (RFC 4648 §4, with `=` padding) wrapped in the sentinel `=?base64?<value>?=` when the serialized string:
 
-- empieza o termina con espacio (0x20) o tab (0x09),
-- contiene cualquier carácter fuera de 0x20-0x7E (no-ASCII), o
-- contiene control chars (0x00-0x1F o 0x7F).
+- starts or ends with space (0x20) or tab (0x09),
+- contains any character outside 0x20-0x7E (non-ASCII), or
+- contains control chars (0x00-0x1F or 0x7F).
 
-El servidor decodifica el sentinel antes de comparar contra el body. Falla de decode ⇒ error `-32001` (`HeaderMismatch`).
+The server decodes the sentinel before comparing against the body. Decode failure ⇒ error `-32001` (`HeaderMismatch`).
 
-### 3.5 Validación SEP-2243 — `packages/http/src/sep2243.ts`
+### 3.5 SEP-2243 validation — `packages/http/src/sep2243.ts`
 
 ```ts
 export interface Sep2243Outcome {
@@ -252,18 +252,18 @@ export function validateSep2243(
 ): Sep2243Outcome;
 ```
 
-Reglas (derivadas de `docs/principal-document.txt:88-91` y `:202`):
+Rules (derived from `docs/principal-document.txt:88-91` and `:202`):
 
-- POST con body JSON-RPC requiere `Mcp-Method` presente. Ausencia ⇒ `missing-header` ⇒ `400`.
-- Si `method === "tools/call"`, también requiere `Mcp-Name` y matching con `body.params.name`.
+- POST with JSON-RPC body requires `Mcp-Method` present. Absence ⇒ `missing-header` ⇒ `400`.
+- If `method === "tools/call"`, also requires `Mcp-Name` matching `body.params.name`.
 - `body.method !== headers["mcp-method"]` ⇒ `method-mismatch` ⇒ `400`.
-- GET (apertura SSE) no requiere `Mcp-Name`.
-- `initialize`, `tools/list`, `ping`: `Mcp-Name` opcional (header puede estar vacío o ausente; si presente, sin validación de coherencia porque no hay name target).
-- DELETE (cierre de sesión stateful): cabeceras opcionales.
+- GET (SSE opening) does not require `Mcp-Name`.
+- `initialize`, `tools/list`, `ping`: `Mcp-Name` optional (header can be empty or absent; if present, no coherence validation because there is no name target).
+- DELETE (stateful session close): headers optional.
 
-**Orden de ejecución:** ANTES del SDK transport. El SDK 1.29 no valida coherencia header↔body.
+**Execution order:** BEFORE the SDK transport. SDK 1.29 does not validate header↔body coherence.
 
-### 3.6 Defensa Origin — `packages/http/src/origin.ts`
+### 3.6 Origin defense — `packages/http/src/origin.ts`
 
 ```ts
 export function checkOrigin(
@@ -272,46 +272,46 @@ export function checkOrigin(
 ): { ok: true } | { ok: false; status: 403; reason: string };
 ```
 
-- `originHeader` ausente ⇒ `ok: true` + warning una vez por minuto si `allowedOrigins.length === 0`.
-- `originHeader` presente:
-  - Si `allowedOrigins.length === 0` ⇒ `403` (la spec exige verificar; sin whitelist no podemos aprobar).
-  - Si matching exacto case-insensitive ⇒ `ok: true`.
-  - Si no matchea ⇒ `403` con `{"error":"forbidden"}` (sin información adicional al atacante).
+- `originHeader` absent ⇒ `ok: true` + warning once per minute if `allowedOrigins.length === 0`.
+- `originHeader` present:
+  - If `allowedOrigins.length === 0` ⇒ `403` (the spec requires verification; without a whitelist we cannot approve).
+  - If exact case-insensitive match ⇒ `ok: true`.
+  - If no match ⇒ `403` with `{"error":"forbidden"}` (no additional information to the attacker).
 
 ### 3.7 Dispatch bridge — `packages/http/src/createMcpHttp.ts`
 
-Pasos del factory en orden:
+Factory steps in order:
 
-1. Validar opciones (`path` empieza por `/`, `allowedOrigins` es array, `name`/`version` no vacíos).
-2. `localhostWarn(warnOnNonLocalhost)` lee env y emite warning si procede.
-3. Crear `AsyncLocalStorage<McpHttpContext>` (`httpContextStorage`).
-4. Instanciar `new Server({ name, version }, { capabilities: { tools: {} } })`.
-5. Llamar `registerTools({ server, tools, onToolCall: bridge })` donde `bridge(tool, args)` lee `httpContextStorage.getStore()`, mergea `headerParams` en `args` (política §3.4.4) y delega a `userOnToolCall(tool, enrichedArgs, ctx)`.
-6. Instanciar `new StreamableHTTPServerTransport({ sessionIdGenerator: session === "stateful" ? (sessionIdGenerator ?? randomUUID) : undefined, enableJsonResponse })`.
+1. Validate options (`path` starts with `/`, `allowedOrigins` is array, `name`/`version` non-empty).
+2. `localhostWarn(warnOnNonLocalhost)` reads env and emits warning if applicable.
+3. Create `AsyncLocalStorage<McpHttpContext>` (`httpContextStorage`).
+4. Instantiate `new Server({ name, version }, { capabilities: { tools: {} } })`.
+5. Call `registerTools({ server, tools, onToolCall: bridge })` where `bridge(tool, args)` reads `httpContextStorage.getStore()`, merges `headerParams` into `args` (policy §3.4.4) and delegates to `userOnToolCall(tool, enrichedArgs, ctx)`.
+6. Instantiate `new StreamableHTTPServerTransport({ sessionIdGenerator: session === "stateful" ? (sessionIdGenerator ?? randomUUID) : undefined, enableJsonResponse })`.
 7. `await server.connect(transport)`.
-8. Retornar `{ handleNodeRequest, close }`.
+8. Return `{ handleNodeRequest, close }`.
 
 `handleNodeRequest(req, res)`:
 
-1. `originGuard` → si falla, `res.writeHead(403).end(...)` y return.
-2. Parsear body (los binders Express/Fastify aseguran que `req.body` ya está parseado JSON).
-3. `validateSep2243(req.headers, req.body)` → si falla, `400` con `{ "error": "<reason>" }`.
-4. Construir `ctx`: headers normalizados (lowercase), `auth: req.auth`, `mcp: { method, name }`, `headerParams` extraídos por `parseHeaderParams(req.headers, toolByName(headers["mcp-name"]))`.
+1. `originGuard` → if it fails, `res.writeHead(403).end(...)` and return.
+2. Parse body (Express/Fastify binders ensure `req.body` is already parsed JSON).
+3. `validateSep2243(req.headers, req.body)` → if it fails, `400` with `{ "error": "<reason>" }`.
+4. Build `ctx`: normalized headers (lowercase), `auth: req.auth`, `mcp: { method, name }`, `headerParams` extracted by `parseHeaderParams(req.headers, toolByName(headers["mcp-name"]))`.
 5. `httpContextStorage.run(ctx, () => transport.handleRequest(req, res, req.body))`.
 
-### 3.8 Matriz de paridad transports
+### 3.8 Transport parity matrix
 
-| Capacidad                    | stdio | Streamable HTTP                                |
+| Capability                   | stdio | Streamable HTTP                                |
 | ---------------------------- | ----- | ---------------------------------------------- |
-| Catálogo tools (`MCPTool[]`) | ✅    | ✅ idéntico                                    |
-| `onToolCall(tool, args)`     | ✅    | ✅ + 3er arg `ctx` (opcional, retrocompatible) |
+| Tool catalog (`MCPTool[]`)   | ✅    | ✅ identical                                   |
+| `onToolCall(tool, args)`     | ✅    | ✅ + 3rd arg `ctx` (optional, backwards-compat)|
 | `Mcp-Param-*` headers        | N/A   | ✅                                             |
-| Auth context (`ctx.auth`)    | N/A   | ✅ delegado al framework                       |
-| Sesiones                     | N/A   | ✅ stateless default, stateful opt-in          |
+| Auth context (`ctx.auth`)    | N/A   | ✅ delegated to framework                      |
+| Sessions                     | N/A   | ✅ stateless default, stateful opt-in          |
 
 ---
 
-## 4. Estructura de archivos
+## 4. File structure
 
 ```
 packages/http/
@@ -321,33 +321,33 @@ packages/http/
 ├── README.md
 └── src/
     ├── index.ts                  # barrel + createMcpHttp
-    ├── createMcpHttp.ts          # factory framework-agnóstica
+    ├── createMcpHttp.ts          # framework-agnostic factory
     ├── createMcpHttp.test.ts
-    ├── sep2243.ts                # validateSep2243 (puro)
+    ├── sep2243.ts                # validateSep2243 (pure)
     ├── sep2243.test.ts
-    ├── origin.ts                 # checkOrigin (puro)
+    ├── origin.ts                 # checkOrigin (pure)
     ├── origin.test.ts
     ├── headerParams.ts           # kebabize / parseHeaderParams / mergeArgs
     ├── headerParams.test.ts
-    ├── localhostWarn.ts          # detección 0.0.0.0
+    ├── localhostWarn.ts          # 0.0.0.0 detection
     ├── express.ts                # mountMcpExpress
-    ├── express.test.ts           # supertest + express real
+    ├── express.test.ts           # supertest + real express
     ├── fastify.ts                # mcpFastifyPlugin
     ├── fastify.test.ts           # fastify.inject()
-    └── warn.ts                   # logger stderr prefijo [mcp-auto-expose:http]
+    └── warn.ts                   # stderr logger prefix [mcp-auto-expose:http]
 
 packages/express/src/
-├── mcpHeader.ts                  # NUEVO: helper mcpHeader() (stamp marker)
-└── zodConvert.ts                 # MOD: preservar x-mcp-header en JSON Schema
+├── mcpHeader.ts                  # NEW: mcpHeader() helper (stamp marker)
+└── zodConvert.ts                 # MOD: preserve x-mcp-header in JSON Schema
 
 packages/fastify/src/
-├── mcpHeader.ts                  # NUEVO: simétrico a express
-└── adaptRouteOptions.ts          # MOD: preservar x-mcp-header
+├── mcpHeader.ts                  # NEW: symmetric to express
+└── adaptRouteOptions.ts          # MOD: preserve x-mcp-header
 
 apps/dev-sandbox/src/
-├── http-express-main.ts          # NUEVO: smoke Streamable HTTP + Express
-├── http-fastify-main.ts          # NUEVO: smoke Streamable HTTP + Fastify
-└── http-client-smoke.ts          # NUEVO: cliente MCP del SDK contra cualquiera
+├── http-express-main.ts          # NEW: Streamable HTTP + Express smoke
+├── http-fastify-main.ts          # NEW: Streamable HTTP + Fastify smoke
+└── http-client-smoke.ts          # NEW: SDK MCP client against either
 ```
 
 ---
@@ -399,136 +399,136 @@ apps/dev-sandbox/src/
 
 ---
 
-## 6. Plan de tareas (TDD: rojo → verde → commit)
+## 6. Task plan (TDD: red → green → commit)
 
-> Logs a `stderr` siempre con prefijo `[mcp-auto-expose:http]`. UTF-8 sin BOM. Cero `console.log`.
+> Logs to `stderr` always with prefix `[mcp-auto-expose:http]`. UTF-8 without BOM. Zero `console.log`.
 
-### Tarea 1 — Andamiar `packages/http`
+### Task 1 — Scaffold `packages/http`
 
-- 1.1. `package.json`, `tsconfig.json`, `eslint.config.mjs`, barrel vacío.
-- 1.2. Añadir al `pnpm-workspace.yaml` si hace falta y refrescar `pnpm install`.
-- 1.3. `pnpm --filter @mcp-auto-expose/http check-types` verde.
+- 1.1. `package.json`, `tsconfig.json`, `eslint.config.mjs`, empty barrel.
+- 1.2. Add to `pnpm-workspace.yaml` if needed and refresh `pnpm install`.
+- 1.3. `pnpm --filter @mcp-auto-expose/http check-types` green.
 - 1.4. Commit: `chore(http): scaffold @mcp-auto-expose/http`.
 
-### Tarea 2 — `origin.ts`
+### Task 2 — `origin.ts`
 
-- 2.1. Tests rojos (matriz: ausente, presente match, presente no-match, whitelist vacía).
-- 2.2. Implementación.
+- 2.1. Red tests (matrix: absent, present match, present no-match, empty whitelist).
+- 2.2. Implementation.
 - 2.3. Commit: `feat(http): origin whitelist guard`.
 
-### Tarea 3 — `sep2243.ts`
+### Task 3 — `sep2243.ts`
 
-- 3.1. Tests rojos: missing header, mismatch method, mismatch name (en tools/call), GET sin Mcp-Name aceptado, `tools/list` sin Mcp-Name aceptado, malformed body, `initialize`.
-- 3.2. Implementación.
+- 3.1. Red tests: missing header, method mismatch, name mismatch (in tools/call), GET without Mcp-Name accepted, `tools/list` without Mcp-Name accepted, malformed body, `initialize`.
+- 3.2. Implementation.
 - 3.3. Commit: `feat(http): SEP-2243 header coherence validator`.
 
-### Tarea 4 — `headerParams.ts`
+### Task 4 — `headerParams.ts`
 
-- 4.1. Tests rojos:
+- 4.1. Red tests:
   - `kebabize("tenant_id") === "Tenant-Id"`.
   - `kebabize("invoice_external_ref") === "Invoice-External-Ref"`.
-  - `parseHeaderParams` extrae solo props con `x-mcp-header: true` del schema.
-  - `mergeArgs` aplica la política §3.4.4 (header gana en discrepancia + warn).
-- 4.2. Implementación.
+  - `parseHeaderParams` extracts only props with `x-mcp-header: true` from the schema.
+  - `mergeArgs` applies policy §3.4.4 (header wins on mismatch + warn).
+- 4.2. Implementation.
 - 4.3. Commit: `feat(http): Mcp-Param-* header param pipeline`.
 
-### Tarea 5 — `mcpHeader()` en `packages/express` y `packages/fastify`
+### Task 5 — `mcpHeader()` in `packages/express` and `packages/fastify`
 
-- 5.1. Tests rojos en `packages/express/src/zodConvert.test.ts`:
-  - `mcpHeader(z.string())` produce JSON-Schema con `"x-mcp-header": true`.
-  - Cuando se combina con `.describe(...)` ambos coexisten.
-- 5.2. Mismo conjunto de tests para `packages/fastify`.
-- 5.3. Implementar `mcpHeader.ts` (cada paquete con su propio WeakSet, ambos generan `x-mcp-header: true`).
-- 5.4. Modificar converters para detectar marker y stampar anotación.
+- 5.1. Red tests in `packages/express/src/zodConvert.test.ts`:
+  - `mcpHeader(z.string())` produces JSON Schema with `"x-mcp-header": true`.
+  - When combined with `.describe(...)` both coexist.
+- 5.2. Same set of tests for `packages/fastify`.
+- 5.3. Implement `mcpHeader.ts` (each package with its own WeakSet, both generate `x-mcp-header: true`).
+- 5.4. Modify converters to detect marker and stamp annotation.
 - 5.5. Commit: `feat(zod): mcpHeader() annotation for header-borne params`.
 
-### Tarea 6 — `createMcpHttp.ts`
+### Task 6 — `createMcpHttp.ts`
 
-- 6.1. Tests rojos (con `_deps` para inyectar transport in-memory):
-  - `tools/list` round-trip retorna los tools provistos.
-  - `tools/call` invoca `onToolCall` con args correctos.
-  - `ctx.mcp.method === "tools/call"`, `ctx.mcp.name === <tool>` al disparar el callback.
-  - `ctx.headerParams.tenant_id` poblado cuando viaja `Mcp-Param-Tenant-Id`.
-  - `ctx.auth` propaga `req.auth`.
-  - `close()` cierra transport y server.
-- 6.2. Implementación con AsyncLocalStorage.
+- 6.1. Red tests (with `_deps` to inject in-memory transport):
+  - `tools/list` round-trip returns the provided tools.
+  - `tools/call` invokes `onToolCall` with correct args.
+  - `ctx.mcp.method === "tools/call"`, `ctx.mcp.name === <tool>` when callback fires.
+  - `ctx.headerParams.tenant_id` populated when `Mcp-Param-Tenant-Id` is sent.
+  - `ctx.auth` propagates `req.auth`.
+  - `close()` closes transport and server.
+- 6.2. Implementation with AsyncLocalStorage.
 - 6.3. Commit: `feat(http): createMcpHttp factory with Streamable transport`.
 
-### Tarea 7 — `mountMcpExpress`
+### Task 7 — `mountMcpExpress`
 
-- 7.1. Tests rojos (supertest + Express real):
-  - `POST /mcp` con body `initialize` retorna 200 + `protocolVersion`.
-  - `POST /mcp` con `Mcp-Method: tools/list` retorna catálogo.
-  - `POST /mcp` con discrepancia header/body → 400.
-  - `POST /mcp` con `Origin` no en whitelist → 403.
-  - `GET /mcp` con `Accept: text/event-stream` abre SSE.
-  - Middleware previo que setea `req.auth = {sub:"u1"}` propaga a `ctx.auth`.
-  - `Mcp-Param-Tenant-Id` se inyecta en args del handler.
-- 7.2. Implementación: Router con `.post`, `.get`, `.delete` sobre `path`.
+- 7.1. Red tests (supertest + real Express):
+  - `POST /mcp` with `initialize` body returns 200 + `protocolVersion`.
+  - `POST /mcp` with `Mcp-Method: tools/list` returns catalog.
+  - `POST /mcp` with header/body mismatch → 400.
+  - `POST /mcp` with `Origin` not in whitelist → 403.
+  - `GET /mcp` with `Accept: text/event-stream` opens SSE.
+  - Previous middleware setting `req.auth = {sub:"u1"}` propagates to `ctx.auth`.
+  - `Mcp-Param-Tenant-Id` is injected into handler args.
+- 7.2. Implementation: Router with `.post`, `.get`, `.delete` on `path`.
 - 7.3. Commit: `feat(http): Express binder for Streamable HTTP`.
 
-### Tarea 8 — `mcpFastifyPlugin`
+### Task 8 — `mcpFastifyPlugin`
 
-- 8.1. Tests rojos (fastify.inject):
-  - Mismas casuísticas que Tarea 7.
-  - `addContentTypeParser` propio sobre el path `/mcp` para no chocar con el parser por defecto de Fastify.
-  - `disableRequestLogging` opcional respetado.
-- 8.2. Implementación.
+- 8.1. Red tests (fastify.inject):
+  - Same cases as Task 7.
+  - Own `addContentTypeParser` on path `/mcp` to avoid clashing with Fastify's default parser.
+  - Optional `disableRequestLogging` respected.
+- 8.2. Implementation.
 - 8.3. Commit: `feat(http): Fastify binder for Streamable HTTP`.
 
-### Tarea 9 — Smoke Express en `apps/dev-sandbox`
+### Task 9 — Express smoke in `apps/dev-sandbox`
 
-- 9.1. `http-express-main.ts`: Express + Router + `mcpExpose` (4 tools, incluyendo uno con `mcpHeader` para `tenant_id`).
-- 9.2. `autoExpose` extrae `tools`; `mountMcpExpress({tools, onToolCall, allowedOrigins:["http://localhost:5173"]})`.
+- 9.1. `http-express-main.ts`: Express + Router + `mcpExpose` (4 tools, including one with `mcpHeader` for `tenant_id`).
+- 9.2. `autoExpose` extracts `tools`; `mountMcpExpress({tools, onToolCall, allowedOrigins:["http://localhost:5173"]})`.
 - 9.3. `app.listen(3000, "127.0.0.1")`.
 - 9.4. Commit: `chore(dev-sandbox): HTTP Express smoke entry-point`.
 
-### Tarea 10 — Smoke Fastify
+### Task 10 — Fastify smoke
 
-- 10.1. `http-fastify-main.ts` análogo.
+- 10.1. `http-fastify-main.ts` analogous.
 - 10.2. Commit: `chore(dev-sandbox): HTTP Fastify smoke entry-point`.
 
-### Tarea 11 — Cliente MCP SDK end-to-end
+### Task 11 — MCP SDK end-to-end client
 
-- 11.1. `http-client-smoke.ts`: `StreamableHTTPClientTransport` apunta a `127.0.0.1:3000/mcp`, ejecuta `listTools()` + `callTool()`.
-- 11.2. Verifica paridad de catálogo contra stdio.
+- 11.1. `http-client-smoke.ts`: `StreamableHTTPClientTransport` pointing to `127.0.0.1:3000/mcp`, executes `listTools()` + `callTool()`.
+- 11.2. Verifies catalog parity against stdio.
 - 11.3. Commit: `chore(dev-sandbox): MCP SDK client smoke for HTTP transport`.
 
-### Tarea 12 — README de `packages/http`
+### Task 12 — README for `packages/http`
 
-- 12.1. Patrón de uso Express con middleware de auth previo.
-- 12.2. Patrón Fastify equivalente con `preHandler`.
-- 12.3. Sección **Seguridad**: Origin, bind a `127.0.0.1`, auth delegada.
-- 12.4. Sección **SEP-2243**: ejemplos curl con cabeceras correctas e incorrectas.
-- 12.5. Sección **Extensión `x-mcp-header`** declarada como extensión propia del proyecto (no SEP MCP).
+- 12.1. Express usage pattern with prior auth middleware.
+- 12.2. Equivalent Fastify pattern with `preHandler`.
+- 12.3. **Security** section: Origin, bind to `127.0.0.1`, delegated auth.
+- 12.4. **SEP-2243** section: curl examples with correct and incorrect headers.
+- 12.5. **`x-mcp-header` extension** section declared as part of the MCP standard (not a project-specific extension).
 - 12.6. Commit: `docs(http): usage, security, SEP-2243 reference`.
 
-### Tarea 13 — CI / lint global
+### Task 13 — CI / global lint
 
-- 13.1. `pnpm lint`, `pnpm test`, `pnpm build` verdes en raíz.
-- 13.2. Ajustar `turbo.json` si se requiere declarar nuevas envs/inputs.
+- 13.1. `pnpm lint`, `pnpm test`, `pnpm build` green at root.
+- 13.2. Adjust `turbo.json` if new envs/inputs need to be declared.
 - 13.3. Commit: `chore(ci): wire @mcp-auto-expose/http into turbo pipeline`.
 
 ---
 
-## 7. Verificación de aceptación
+## 7. Acceptance verification
 
-### 7.1 Automática
+### 7.1 Automated
 
 ```sh
 pnpm install
 pnpm --filter @mcp-auto-expose/http check-types
 pnpm --filter @mcp-auto-expose/http test
-pnpm --filter @mcp-auto-expose/express test    # incluye nuevos tests de mcpHeader
-pnpm --filter @mcp-auto-expose/fastify test    # idem
+pnpm --filter @mcp-auto-expose/express test    # includes new mcpHeader tests
+pnpm --filter @mcp-auto-expose/fastify test    # same
 pnpm --filter dev-sandbox check-types
 pnpm lint
 pnpm build
 ```
 
-Criterio: todo verde, cero warnings ESLint.
+Criterion: all green, zero ESLint warnings.
 
-### 7.2 Manual con curl (sandbox Express corriendo en 127.0.0.1:3000)
+### 7.2 Manual with curl (Express sandbox running on 127.0.0.1:3000)
 
 ```sh
 # 1. initialize
@@ -543,19 +543,19 @@ curl -sN -X POST http://127.0.0.1:3000/mcp \
   -H "Mcp-Method: tools/list" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 
-# 3. tools/call con Mcp-Param-*
+# 3. tools/call with Mcp-Param-*
 curl -sN -X POST http://127.0.0.1:3000/mcp \
   -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
   -H "Mcp-Method: tools/call" -H "Mcp-Name: create_invoice" -H "Mcp-Param-Tenant-Id: t1" \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"create_invoice","arguments":{"invoice_id":"inv-001"}}}'
 
-# 4. Discrepancia header/body → 400
+# 4. Header/body mismatch → 400
 curl -sN -X POST http://127.0.0.1:3000/mcp \
   -H "Content-Type: application/json" -H "Accept: application/json" \
   -H "Mcp-Method: tools/list" \
   -d '{"jsonrpc":"2.0","id":4,"method":"tools/call"}'
 
-# 5. Origin rechazado → 403
+# 5. Rejected Origin → 403
 curl -sN -X POST http://127.0.0.1:3000/mcp \
   -H "Origin: https://evil.example" -H "Content-Type: application/json" \
   -H "Mcp-Method: tools/list" \
@@ -565,30 +565,30 @@ curl -sN -X POST http://127.0.0.1:3000/mcp \
 curl -sN -X GET http://127.0.0.1:3000/mcp -H "Accept: text/event-stream"
 ```
 
-### 7.3 Manual con cliente MCP del SDK
+### 7.3 Manual with SDK MCP client
 
-`pnpm --filter dev-sandbox tsx src/http-client-smoke.ts` ⇒ imprime catálogo y resultado de `callTool` exitoso. El catálogo debe ser **idéntico** al obtenido por stdio en `apps/dev-sandbox/src/main.ts`.
+`pnpm --filter dev-sandbox tsx src/http-client-smoke.ts` ⇒ prints catalog and result of successful `callTool`. The catalog must be **identical** to that obtained via stdio in `apps/dev-sandbox/src/main.ts`.
 
-### 7.4 Smoke Fastify
+### 7.4 Fastify smoke
 
-`pnpm --filter dev-sandbox tsx src/http-fastify-main.ts` ⇒ exhibe paridad cross-framework.
+`pnpm --filter dev-sandbox tsx src/http-fastify-main.ts` ⇒ exhibits cross-framework parity.
 
 ---
 
-## 8. Notas y decisiones explícitas
+## 8. Notes and explicit decisions
 
-1. **Extensión `x-mcp-header`** está definida en SEP-2243 Final (https://modelcontextprotocol.io/seps/2243-http-standardization) — no es una extensión propia del proyecto. El README debe declararla como parte del estándar MCP.
+1. **`x-mcp-header` extension** is defined in SEP-2243 Final (https://modelcontextprotocol.io/seps/2243-http-standardization) — it is not a project-specific extension. The README must declare it as part of the MCP standard.
 
-2. **Auth delegada al framework** NO está mandada explícitamente por `docs/principal-document.txt`. El doc autoriza Bearer/OAuth pero no obliga a delegar al framework. La decisión se justifica por: (a) el adapter no debe duplicar ecosistemas maduros (Passport, JWT, Fastify auth); (b) mantener el adapter framework-agnóstico en la capa transport; (c) el SDK 1.29 ya soporta `AuthInfo` propagado vía `req.auth`.
+2. **Auth delegated to the framework** is NOT explicitly mandated by `docs/principal-document.txt`. The doc authorizes Bearer/OAuth but does not require framework delegation. The decision is justified by: (a) the adapter must not duplicate mature ecosystems (Passport, JWT, Fastify auth); (b) keeping the adapter framework-agnostic at the transport layer; (c) SDK 1.29 already supports `AuthInfo` propagated via `req.auth`.
 
-3. **Bind a `127.0.0.1`** no es enforced por el adapter — es `app.listen()`. Warning a stderr + documentación.
+3. **Bind to `127.0.0.1`** is not enforced by the adapter — it is `app.listen()`. Warning to stderr + documentation.
 
-4. **Stateless por default** alinea con `docs/principal-document.txt:92-97` (SEP-2549). Stateful queda opt-in.
+4. **Stateless by default** aligns with `docs/principal-document.txt:92-97` (SEP-2549). Stateful is opt-in.
 
-5. **Re-invocación virtual de rutas Express/Fastify** queda fuera de alcance — Fase 4.1 opcional futura.
+5. **Virtual re-invocation of Express/Fastify routes** is out of scope — optional future Phase 4.1.
 
-6. **Versión SDK pin**: `~1.29.0` en `peerDependencies` durante MVP.
+6. **SDK version pin**: `~1.29.0` in `peerDependencies` during MVP.
 
-7. **Tests SSE**: usar `testTimeout: 5000` en Vitest para evitar cuelgues.
+7. **SSE tests**: use `testTimeout: 5000` in Vitest to avoid hangs.
 
-8. **Encoding**: todos los archivos UTF-8 sin BOM.
+8. **Encoding**: all files UTF-8 without BOM.
