@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { MCPTool, HttpCallerOptions } from "@mcp-auto-expose/core";
 import { makeHttpCaller } from "@mcp-auto-expose/core";
@@ -237,10 +238,13 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
   async function makeTransport(): Promise<StreamableHTTPServerTransport> {
     const srv = session === "stateful" ? statefulServer! : setupServer();
     const t = new StreamableHTTPServerTransport({
-      sessionIdGenerator: session === "stateful" ? (sessionIdGenerator ?? randomUUID) : undefined,
+      ...(session === "stateful" && { sessionIdGenerator: sessionIdGenerator ?? randomUUID }),
       enableJsonResponse,
     });
-    await srv.connect(t);
+    // Cast to Transport: StreamableHTTPServerTransport implements Transport but its
+    // onclose getter returns `(() => void) | undefined`, which under exactOptionalPropertyTypes
+    // doesn't satisfy Transport.onclose?: () => void. This is a third-party type mismatch.
+    await srv.connect(t as Transport);
     return t;
   }
 
@@ -340,14 +344,15 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
         }
       }
 
+      const traceContext = extractTraceContext(
+        req.headers as Record<string, string | string[] | undefined>,
+      );
       const ctx: McpHttpContext = {
         headers: req.headers as Record<string, string | string[] | undefined>,
-        auth: req.auth,
+        ...(req.auth !== undefined && { auth: req.auth }),
         mcp: { method: mcpMethod, name: mcpName },
         headerParams,
-        traceContext: extractTraceContext(
-          req.headers as Record<string, string | string[] | undefined>,
-        ),
+        ...(traceContext !== undefined && { traceContext }),
       };
 
       if (session === "stateful" && !req.headers["mcp-session-id"]) {
@@ -392,14 +397,15 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
       }
     } else {
       // GET / DELETE: no body, no SEP-2243 check
+      const traceContextGet = extractTraceContext(
+        req.headers as Record<string, string | string[] | undefined>,
+      );
       const ctx: McpHttpContext = {
         headers: req.headers as Record<string, string | string[] | undefined>,
-        auth: req.auth,
+        ...(req.auth !== undefined && { auth: req.auth }),
         mcp: { method: "", name: "" },
         headerParams: {},
-        traceContext: extractTraceContext(
-          req.headers as Record<string, string | string[] | undefined>,
-        ),
+        ...(traceContextGet !== undefined && { traceContext: traceContextGet }),
       };
 
       await httpContextStorage.run(ctx, () =>

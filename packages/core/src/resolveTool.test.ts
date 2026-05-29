@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import type { RouteDescriptor } from "./types.js";
 import { INTERNAL_SOURCE } from "./internal.js";
 import { resolveTool } from "./resolveTool.js";
@@ -30,14 +29,14 @@ describe("resolveTool", () => {
 
     const tool = resolveTool(descriptor);
 
-    assert.equal(tool.name, "get_users_by_id");
-    assert.equal(tool.description, "Get a user by ID");
-    assert.deepEqual(tool.inputSchema, {
+    expect(tool.name).toBe("get_users_by_id");
+    expect(tool.description).toBe("Get a user by ID");
+    expect(tool.inputSchema).toEqual({
       type: "object",
       properties: { id: { type: "string" } },
       required: ["id"],
     });
-    assert.deepEqual(tool[INTERNAL_SOURCE]!, {
+    expect(tool[INTERNAL_SOURCE]!).toEqual({
       framework: "fastify",
       method: "GET",
       url: "/api/users/:id",
@@ -54,7 +53,7 @@ describe("resolveTool", () => {
 
     const tool = resolveTool(descriptor);
 
-    assert.equal(tool.description, "List all users");
+    expect(tool.description).toBe("List all users");
   });
 
   it("3. auto-description fallback — schema has neither description nor summary", () => {
@@ -68,7 +67,7 @@ describe("resolveTool", () => {
 
     const tool = resolveTool(descriptor);
 
-    assert.equal(tool.description, "GET /api/users — auto-descubierto por mcp-auto-expose");
+    expect(tool.description).toBe("GET /api/users — auto-descubierto por mcp-auto-expose");
   });
 
   it("4. no schema at all — auto-generated description, inputSchema is empty object schema", () => {
@@ -79,9 +78,9 @@ describe("resolveTool", () => {
 
     const tool = resolveTool(descriptor);
 
-    assert.equal(tool.description, "GET /api/users — auto-descubierto por mcp-auto-expose");
-    assert.deepEqual(tool.inputSchema, { type: "object", properties: {} });
-    assert.ok(!("required" in tool.inputSchema), "should have no 'required' key");
+    expect(tool.description).toBe("GET /api/users — auto-descubierto por mcp-auto-expose");
+    expect(tool.inputSchema).toEqual({ type: "object", properties: {} });
+    expect("required" in tool.inputSchema, "should have no 'required' key").toBeFalsy();
   });
 
   it("5. POST with body schema — inputSchema has body properties", () => {
@@ -102,8 +101,8 @@ describe("resolveTool", () => {
 
     const tool = resolveTool(descriptor);
 
-    assert.equal(tool.name, "create_users");
-    assert.deepEqual(tool.inputSchema, {
+    expect(tool.name).toBe("create_users");
+    expect(tool.inputSchema).toEqual({
       type: "object",
       properties: {
         name: { type: "string" },
@@ -123,8 +122,8 @@ describe("resolveTool", () => {
     const tool = resolveTool(descriptor);
 
     const src = tool[INTERNAL_SOURCE]!;
-    assert.equal(src.framework, "express");
-    assert.equal(src.method, "DELETE");
-    assert.equal(src.url, "/api/items/:itemId");
+    expect(src.framework).toBe("express");
+    expect(src.method).toBe("DELETE");
+    expect(src.url).toBe("/api/items/:itemId");
   });
 });

@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { reconstructRequest } from "./reconstructRequest.js";
 import type { MCPTool } from "./types.js";
 import { INTERNAL_SOURCE } from "./internal.js";
@@ -37,9 +36,9 @@ describe("reconstructRequest", () => {
       },
     });
     const result = reconstructRequest(tool, { id: "123" });
-    assert.equal(result.url, "/users/123");
-    assert.equal(result.querystring, "");
-    assert.equal(result.body, undefined);
+    expect(result.url).toBe("/users/123");
+    expect(result.querystring).toBe("");
+    expect(result.body).toBe(undefined);
   });
 
   it("2. GET /users with querystring {format:'json'} → querystring built", () => {
@@ -52,9 +51,9 @@ describe("reconstructRequest", () => {
       },
     });
     const result = reconstructRequest(tool, { format: "json" });
-    assert.equal(result.url, "/users");
-    assert.equal(result.querystring, "?format=json");
-    assert.equal(result.body, undefined);
+    expect(result.url).toBe("/users");
+    expect(result.querystring).toBe("?format=json");
+    expect(result.body).toBe(undefined);
   });
 
   it("3. POST /users with body {name, email} → body object returned", () => {
@@ -67,9 +66,9 @@ describe("reconstructRequest", () => {
       },
     });
     const result = reconstructRequest(tool, { name: "Ana", email: "ana@test.com" });
-    assert.equal(result.url, "/users");
-    assert.equal(result.querystring, "");
-    assert.deepEqual(result.body, { name: "Ana", email: "ana@test.com" });
+    expect(result.url).toBe("/users");
+    expect(result.querystring).toBe("");
+    expect(result.body).toEqual({ name: "Ana", email: "ana@test.com" });
   });
 
   it("4. URL param with special characters → encodeURIComponent applied", () => {
@@ -82,7 +81,7 @@ describe("reconstructRequest", () => {
       },
     });
     const result = reconstructRequest(tool, { path: "folder/sub file" });
-    assert.equal(result.url, "/files/folder%2Fsub%20file");
+    expect(result.url).toBe("/files/folder%2Fsub%20file");
   });
 
   it("5. x-mcp-header: string arg → goes to headers verbatim, NOT body/url/query", () => {
@@ -102,10 +101,10 @@ describe("reconstructRequest", () => {
       },
     });
     const result = reconstructRequest(tool, { id: "u1", tenant_id: "acme" });
-    assert.equal(result.url, "/users/u1");
-    assert.equal(result.headers["Mcp-Param-TenantId"], "acme");
-    assert.ok(!result.url.includes("acme"), "tenant_id must not appear in url");
-    assert.equal(result.querystring, "");
+    expect(result.url).toBe("/users/u1");
+    expect(result.headers["Mcp-Param-TenantId"]).toBe("acme");
+    expect(!result.url.includes("acme"), "tenant_id must not appear in url").toBeTruthy();
+    expect(result.querystring).toBe("");
   });
 
   it("6. params key with no :placeholder in URL → warns stderr + skips", () => {
@@ -131,9 +130,9 @@ describe("reconstructRequest", () => {
       process.stderr.write = originalWrite;
     }
 
-    assert.ok(stderrOutput.includes("unbound-param"), "stderr should mention unbound-param");
-    assert.equal(result.url, "/users/u1");
-    assert.ok(!result.url.includes("phantom"), "unbound value must not appear in url");
+    expect(stderrOutput.includes("unbound-param"), "stderr should mention unbound-param").toBeTruthy();
+    expect(result.url).toBe("/users/u1");
+    expect(!result.url.includes("phantom"), "unbound value must not appear in url").toBeTruthy();
   });
 
   it("7. GET method with body declared in paramMap → warns stderr + body undefined", () => {
@@ -159,11 +158,11 @@ describe("reconstructRequest", () => {
       process.stderr.write = originalWrite;
     }
 
-    assert.ok(
+    expect(
       stderrOutput.includes("body-on-bodiless-method"),
       "stderr must warn about body on bodiless method",
-    );
-    assert.equal(result.body, undefined);
+    ).toBeTruthy();
+    expect(result.body).toBe(undefined);
   });
 
   it("8. args not in paramMap → ignored silently", () => {
@@ -176,9 +175,9 @@ describe("reconstructRequest", () => {
       },
     });
     const result = reconstructRequest(tool, { unknown: "value" });
-    assert.equal(result.url, "/users");
-    assert.equal(result.querystring, "");
-    assert.equal(result.body, undefined);
+    expect(result.url).toBe("/users");
+    expect(result.querystring).toBe("");
+    expect(result.body).toBe(undefined);
   });
 
   it("9. {type:string} brace-style params substitution", () => {
@@ -191,6 +190,6 @@ describe("reconstructRequest", () => {
       },
     });
     const result = reconstructRequest(tool, { id: "123" });
-    assert.equal(result.url, "/users/123");
+    expect(result.url).toBe("/users/123");
   });
 });

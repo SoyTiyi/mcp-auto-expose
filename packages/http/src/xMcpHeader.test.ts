@@ -1,27 +1,26 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { isValidXMcpHeaderName, sanitizeToolXMcpHeaders } from "./xMcpHeader.js";
 
 describe("isValidXMcpHeaderName", () => {
   it("plain ASCII name is valid", () => {
-    assert.equal(isValidXMcpHeaderName("TenantId"), true);
-    assert.equal(isValidXMcpHeaderName("Region"), true);
-    assert.equal(isValidXMcpHeaderName("X-Custom_42"), true);
+    expect(isValidXMcpHeaderName("TenantId")).toBe(true);
+    expect(isValidXMcpHeaderName("Region")).toBe(true);
+    expect(isValidXMcpHeaderName("X-Custom_42")).toBe(true);
   });
   it("empty string is invalid", () => {
-    assert.equal(isValidXMcpHeaderName(""), false);
+    expect(isValidXMcpHeaderName("")).toBe(false);
   });
   it("contains space → invalid", () => {
-    assert.equal(isValidXMcpHeaderName("Tenant Id"), false);
+    expect(isValidXMcpHeaderName("Tenant Id")).toBe(false);
   });
   it("contains colon → invalid", () => {
-    assert.equal(isValidXMcpHeaderName("Tenant:Id"), false);
+    expect(isValidXMcpHeaderName("Tenant:Id")).toBe(false);
   });
   it("non-ASCII → invalid", () => {
-    assert.equal(isValidXMcpHeaderName("Región"), false);
+    expect(isValidXMcpHeaderName("Región")).toBe(false);
   });
   it("control char → invalid", () => {
-    assert.equal(isValidXMcpHeaderName("Tenant\tId"), false);
+    expect(isValidXMcpHeaderName("Tenant\tId")).toBe(false);
   });
 });
 
@@ -37,8 +36,8 @@ describe("sanitizeToolXMcpHeaders", () => {
     const warns: string[] = [];
     sanitizeToolXMcpHeaders("create_invoice", schema, (code) => warns.push(code));
     const props = schema["properties"] as Record<string, Record<string, unknown>>;
-    assert.equal(props["tenant_id"]?.["x-mcp-header"], "TenantId");
-    assert.deepEqual(warns, []);
+    expect(props["tenant_id"]?.["x-mcp-header"]).toBe("TenantId");
+    expect(warns).toEqual([]);
   });
 
   it("strips empty annotation and warns", () => {
@@ -48,11 +47,10 @@ describe("sanitizeToolXMcpHeaders", () => {
     } as Record<string, unknown>;
     const warns: string[] = [];
     sanitizeToolXMcpHeaders("t", schema, (code) => warns.push(code));
-    assert.equal(
+    expect(
       (schema["properties"] as Record<string, Record<string, unknown>>)["region"]?.["x-mcp-header"],
-      undefined,
-    );
-    assert.deepEqual(warns, ["xmcpheader-invalid-name"]);
+    ).toBe(undefined);
+    expect(warns).toEqual(["xmcpheader-invalid-name"]);
   });
 
   it("strips non-primitive annotation and warns", () => {
@@ -62,11 +60,10 @@ describe("sanitizeToolXMcpHeaders", () => {
     } as Record<string, unknown>;
     const warns: string[] = [];
     sanitizeToolXMcpHeaders("t", schema, (code) => warns.push(code));
-    assert.equal(
+    expect(
       (schema["properties"] as Record<string, Record<string, unknown>>)["tags"]?.["x-mcp-header"],
-      undefined,
-    );
-    assert.deepEqual(warns, ["xmcpheader-non-primitive"]);
+    ).toBe(undefined);
+    expect(warns).toEqual(["xmcpheader-non-primitive"]);
   });
 
   it("strips duplicate (case-insensitive) annotation and warns", () => {
@@ -80,8 +77,8 @@ describe("sanitizeToolXMcpHeaders", () => {
     const warns: string[] = [];
     sanitizeToolXMcpHeaders("t", schema, (code) => warns.push(code));
     const props = schema["properties"] as Record<string, Record<string, unknown>>;
-    assert.equal(props["a"]?.["x-mcp-header"], "Region");
-    assert.equal(props["b"]?.["x-mcp-header"], undefined);
-    assert.deepEqual(warns, ["xmcpheader-duplicate"]);
+    expect(props["a"]?.["x-mcp-header"]).toBe("Region");
+    expect(props["b"]?.["x-mcp-header"]).toBe(undefined);
+    expect(warns).toEqual(["xmcpheader-duplicate"]);
   });
 });

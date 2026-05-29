@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import {
   encodeHeaderValue,
   decodeHeaderValue,
@@ -9,40 +8,40 @@ import {
 
 describe("encodeHeaderValue", () => {
   it("plain ASCII printable stays plain", () => {
-    assert.equal(encodeHeaderValue("us-west1"), "us-west1");
-    assert.equal(encodeHeaderValue("us west 1"), "us west 1");
-    assert.equal(encodeHeaderValue("42"), "42");
+    expect(encodeHeaderValue("us-west1")).toBe("us-west1");
+    expect(encodeHeaderValue("us west 1")).toBe("us west 1");
+    expect(encodeHeaderValue("42")).toBe("42");
   });
   it("leading whitespace triggers sentinel", () => {
-    assert.equal(encodeHeaderValue(" us-west1"), "=?base64?IHVzLXdlc3Qx?=");
+    expect(encodeHeaderValue(" us-west1")).toBe("=?base64?IHVzLXdlc3Qx?=");
   });
   it("trailing whitespace triggers sentinel", () => {
-    assert.equal(encodeHeaderValue("us-west1 "), "=?base64?dXMtd2VzdDEg?=");
+    expect(encodeHeaderValue("us-west1 ")).toBe("=?base64?dXMtd2VzdDEg?=");
   });
   it("non-ASCII triggers sentinel with standard Base64 (with padding ==)", () => {
-    assert.equal(encodeHeaderValue("Hello, 世界"), "=?base64?SGVsbG8sIOS4lueVjA==?=");
+    expect(encodeHeaderValue("Hello, 世界")).toBe("=?base64?SGVsbG8sIOS4lueVjA==?=");
   });
   it("newline triggers sentinel", () => {
-    assert.equal(encodeHeaderValue("line1\nline2"), "=?base64?bGluZTEKbGluZTI=?=");
+    expect(encodeHeaderValue("line1\nline2")).toBe("=?base64?bGluZTEKbGluZTI=?=");
   });
 });
 
 describe("decodeHeaderValue", () => {
   it("plain value returns as-is", () => {
-    assert.deepEqual(decodeHeaderValue("us-west1"), { ok: true, value: "us-west1" });
+    expect(decodeHeaderValue("us-west1")).toEqual({ ok: true, value: "us-west1" });
   });
   it("sentinel-wrapped Base64 decodes", () => {
-    assert.deepEqual(decodeHeaderValue("=?base64?SGVsbG8=?="), { ok: true, value: "Hello" });
+    expect(decodeHeaderValue("=?base64?SGVsbG8=?=")).toEqual({ ok: true, value: "Hello" });
   });
   it("sentinel prefix is case-insensitive (=?BASE64?)", () => {
-    assert.deepEqual(decodeHeaderValue("=?BASE64?SGVsbG8=?="), { ok: true, value: "Hello" });
+    expect(decodeHeaderValue("=?BASE64?SGVsbG8=?=")).toEqual({ ok: true, value: "Hello" });
   });
   it("invalid Base64 inside sentinel → ok: false", () => {
     const r = decodeHeaderValue("=?base64?!!!?=");
-    assert.equal(r.ok, false);
+    expect(r.ok).toBe(false);
   });
   it("missing closing sentinel → treated as literal", () => {
-    assert.deepEqual(decodeHeaderValue("=?base64?SGVsbG8="), {
+    expect(decodeHeaderValue("=?base64?SGVsbG8=")).toEqual({
       ok: true,
       value: "=?base64?SGVsbG8=",
     });
@@ -59,13 +58,13 @@ describe("collectExpectedHeaderParams", () => {
       },
     };
     const result = collectExpectedHeaderParams(schema);
-    assert.deepEqual(result, {
+    expect(result).toEqual({
       "mcp-param-tenantid": "tenant_id",
       "mcp-param-region": "region",
     });
   });
   it("empty schema returns {}", () => {
-    assert.deepEqual(collectExpectedHeaderParams({}), {});
+    expect(collectExpectedHeaderParams({})).toEqual({});
   });
 });
 
@@ -83,7 +82,7 @@ describe("validateAndMergeHeaderParams", () => {
       { tenant_id: "acme", invoice_id: "inv-1" },
       { "mcp-param-tenantid": "acme" },
     );
-    assert.deepEqual(result, { ok: true, args: { tenant_id: "acme", invoice_id: "inv-1" } });
+    expect(result).toEqual({ ok: true, args: { tenant_id: "acme", invoice_id: "inv-1" } });
   });
 
   it("body arg missing, header present → header injected", () => {
@@ -92,7 +91,7 @@ describe("validateAndMergeHeaderParams", () => {
       { invoice_id: "inv-1" },
       { "mcp-param-tenantid": "acme" },
     );
-    assert.deepEqual(result, { ok: true, args: { tenant_id: "acme", invoice_id: "inv-1" } });
+    expect(result).toEqual({ ok: true, args: { tenant_id: "acme", invoice_id: "inv-1" } });
   });
 
   it("body arg present, header absent → ok: false reason: header-missing", () => {
@@ -101,10 +100,10 @@ describe("validateAndMergeHeaderParams", () => {
       { tenant_id: "acme", invoice_id: "inv-1" },
       {},
     );
-    assert.equal(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.equal(result.reason, "header-missing");
-      assert.match(result.detail, /TenantId/);
+      expect(result.reason).toBe("header-missing");
+      expect(result.detail).toMatch(/TenantId/);
     }
   });
 
@@ -114,10 +113,10 @@ describe("validateAndMergeHeaderParams", () => {
       { tenant_id: "acme", invoice_id: "inv-1" },
       { "mcp-param-tenantid": "evil" },
     );
-    assert.equal(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.equal(result.reason, "header-mismatch");
-      assert.match(result.detail, /TenantId/);
+      expect(result.reason).toBe("header-mismatch");
+      expect(result.detail).toMatch(/TenantId/);
     }
   });
 
@@ -127,7 +126,7 @@ describe("validateAndMergeHeaderParams", () => {
       { tenant_id: "Hello, 世界", invoice_id: "inv-1" },
       { "mcp-param-tenantid": "=?base64?SGVsbG8sIOS4lueVjA==?=" },
     );
-    assert.deepEqual(result, { ok: true, args: { tenant_id: "Hello, 世界", invoice_id: "inv-1" } });
+    expect(result).toEqual({ ok: true, args: { tenant_id: "Hello, 世界", invoice_id: "inv-1" } });
   });
 
   it("invalid Base64 → ok: false reason: invalid-base64", () => {
@@ -136,9 +135,9 @@ describe("validateAndMergeHeaderParams", () => {
       { tenant_id: "x", invoice_id: "inv-1" },
       { "mcp-param-tenantid": "=?base64?!!!?=" },
     );
-    assert.equal(result.ok, false);
+    expect(result.ok).toBe(false);
     if (!result.ok) {
-      assert.equal(result.reason, "invalid-base64");
+      expect(result.reason).toBe("invalid-base64");
     }
   });
 
@@ -148,6 +147,6 @@ describe("validateAndMergeHeaderParams", () => {
       { a: "1" },
       {},
     );
-    assert.deepEqual(result, { ok: true, args: { a: "1" } });
+    expect(result).toEqual({ ok: true, args: { a: "1" } });
   });
 });

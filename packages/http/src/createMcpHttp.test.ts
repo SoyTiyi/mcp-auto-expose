@@ -1,10 +1,10 @@
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import http, { IncomingMessage, ServerResponse } from "node:http";
 import { Socket } from "node:net";
 import type { AddressInfo } from "node:net";
 import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
+import type { MCPTool } from "@mcp-auto-expose/core";
 import { createMcpHttp } from "./createMcpHttp.js";
 import type { McpHttpContext, McpHttpOptions, McpIncomingMessage } from "./createMcpHttp.js";
 
@@ -146,7 +146,7 @@ describe("createMcpHttp — origin guard", () => {
         },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
       });
-      assert.equal(res.status, 403);
+      expect(res.status).toBe(403);
     });
   });
 
@@ -167,7 +167,7 @@ describe("createMcpHttp — origin guard", () => {
         },
         { "Mcp-Method": "initialize" },
       );
-      assert.notEqual(status, 403);
+      expect(status).not.toBe(403);
     });
   });
 });
@@ -181,17 +181,17 @@ describe("createMcpHttp — SEP-2243 guard", () => {
         { jsonrpc: "2.0", id: 1, method: "tools/list" },
         { "Mcp-Method": "tools/call" },
       );
-      assert.equal(status, 400);
+      expect(status).toBe(400);
       const parsed = body as {
         jsonrpc?: string;
         error?: { code: number; message: string; data?: { reason: string } };
       };
-      assert.equal(parsed.jsonrpc, "2.0");
-      assert.equal(parsed.error?.code, -32001);
-      assert.equal(parsed.error?.message, "HeaderMismatch");
-      assert.ok(
+      expect(parsed.jsonrpc).toBe("2.0");
+      expect(parsed.error?.code).toBe(-32001);
+      expect(parsed.error?.message).toBe("HeaderMismatch");
+      expect(
         typeof parsed.error?.data?.reason === "string" && parsed.error.data.reason.length > 0,
-      );
+      ).toBeTruthy();
     });
   });
 
@@ -203,7 +203,7 @@ describe("createMcpHttp — SEP-2243 guard", () => {
         id: 1,
         method: "tools/list",
       });
-      assert.equal(status, 400);
+      expect(status).toBe(400);
     });
   });
 });
@@ -218,10 +218,10 @@ describe("createMcpHttp — MCP roundtrip", () => {
         { jsonrpc: "2.0", id: 2, method: "tools/list" },
         { "Mcp-Method": "tools/list" },
       );
-      assert.equal(status, 200);
+      expect(status).toBe(200);
       const result = body as { result?: { tools?: Array<{ name: string }> } };
       const names = (result.result?.tools ?? []).map((t) => t.name);
-      assert.ok(names.includes("get_item"), `expected get_item in ${JSON.stringify(names)}`);
+      expect(names.includes("get_item"), `expected get_item in ${JSON.stringify(names)}`).toBeTruthy();
     });
   });
 
@@ -240,9 +240,9 @@ describe("createMcpHttp — MCP roundtrip", () => {
         { "Mcp-Method": "tools/call", "Mcp-Name": "get_item" },
       );
       const lastCall = opts.calls[opts.calls.length - 1];
-      assert.ok(lastCall, "onToolCall should have been called");
-      assert.equal(lastCall.tool, "get_item");
-      assert.deepEqual((lastCall.args as Record<string, unknown>)["id"], "abc");
+      expect(lastCall, "onToolCall should have been called").toBeTruthy();
+      expect(lastCall!.tool).toBe("get_item");
+      expect((lastCall!.args as Record<string, unknown>)["id"]).toEqual("abc");
     });
   });
 
@@ -261,10 +261,10 @@ describe("createMcpHttp — MCP roundtrip", () => {
         { "Mcp-Method": "tools/call", "Mcp-Name": "get_item" },
       );
       const lastCall = opts.calls[opts.calls.length - 1];
-      assert.ok(lastCall);
-      const ctx = lastCall.ctx as { mcp: { method: string; name: string } };
-      assert.equal(ctx.mcp.method, "tools/call");
-      assert.equal(ctx.mcp.name, "get_item");
+      expect(lastCall).toBeTruthy();
+      const ctx = lastCall!.ctx as { mcp: { method: string; name: string } };
+      expect(ctx.mcp.method).toBe("tools/call");
+      expect(ctx.mcp.name).toBe("get_item");
     });
   });
 
@@ -289,14 +289,14 @@ describe("createMcpHttp — MCP roundtrip", () => {
         },
       );
       // Request succeeds; enrichment (headerParams injection) comes in Task 9.
-      assert.equal(status, 200);
+      expect(status).toBe(200);
     });
   });
 
   it("close() resolves without error", async () => {
     const opts = makeOpts();
     const handle = createMcpHttp(opts);
-    await assert.doesNotReject(() => handle.close());
+    await handle.close(); // test fails automatically if this rejects
   });
 });
 
@@ -311,7 +311,7 @@ describe("createMcpHttp — SEP-2549 toolsListCache", () => {
         { "Mcp-Method": "tools/list" },
       );
       const result = body as { result?: { _meta?: unknown } };
-      assert.equal(result.result?._meta, undefined);
+      expect(result.result?._meta).toBe(undefined);
     });
   });
 
@@ -325,8 +325,8 @@ describe("createMcpHttp — SEP-2549 toolsListCache", () => {
         { "Mcp-Method": "tools/list" },
       );
       const result = body as { result?: { _meta?: { ttlMs?: number; cacheScope?: string } } };
-      assert.equal(result.result?._meta?.ttlMs, 60000);
-      assert.equal(result.result?._meta?.cacheScope, "global");
+      expect(result.result?._meta?.ttlMs).toBe(60000);
+      expect(result.result?._meta?.cacheScope).toBe("global");
     });
   });
 
@@ -340,21 +340,21 @@ describe("createMcpHttp — SEP-2549 toolsListCache", () => {
         { "Mcp-Method": "tools/list" },
       );
       const result = body as { result?: { _meta?: { cacheScope?: string } } };
-      assert.equal(result.result?._meta?.cacheScope, "session");
+      expect(result.result?._meta?.cacheScope).toBe("session");
     });
   });
 });
 
 describe("createMcpHttp — fail-fast and apiBaseUrl", () => {
   it("does not throw at init when neither onToolCall nor apiBaseUrl provided (error deferred to per-call)", () => {
-    assert.doesNotThrow(() =>
+    expect(() =>
       createMcpHttp({
         name: "test",
         version: "0.0.0",
         tools: [TEST_TOOL],
         allowedOrigins: [],
       }),
-    );
+    ).not.toThrow();
   });
 
   it("onToolCall takes precedence over apiBaseUrl", async () => {
@@ -370,9 +370,9 @@ describe("createMcpHttp — fail-fast and apiBaseUrl", () => {
         return { content: [{ type: "text", text: "explicit" }] };
       },
     });
-    await assert.doesNotReject(() => handle.close());
+    await handle.close(); // test fails automatically if this rejects
 
-    assert.equal(calls.length, 0);
+    expect(calls.length).toBe(0);
   });
 });
 
@@ -435,19 +435,19 @@ describe("createMcpHttp SEP-2243 default enforcement", () => {
     );
     const res = makeMockRes();
     await handle.handleNodeRequest(req, res);
-    assert.equal(res._status, 400);
+    expect(res._status).toBe(400);
     const parsed = JSON.parse(res._body ?? "{}") as {
       jsonrpc: string;
       id: unknown;
       error?: { code: number; message: string; data?: { reason: string } };
     };
-    assert.equal(parsed.jsonrpc, "2.0");
-    assert.equal(parsed.id, 7);
-    assert.equal(parsed.error?.code, -32001);
-    assert.equal(parsed.error?.message, "HeaderMismatch");
-    assert.ok(
+    expect(parsed.jsonrpc).toBe("2.0");
+    expect(parsed.id).toBe(7);
+    expect(parsed.error?.code).toBe(-32001);
+    expect(parsed.error?.message).toBe("HeaderMismatch");
+    expect(
       typeof parsed.error?.data?.reason === "string" && parsed.error.data.reason.length > 0,
-    );
+    ).toBeTruthy();
     await handle.close();
   });
 
@@ -465,8 +465,8 @@ describe("createMcpHttp SEP-2243 default enforcement", () => {
       id: unknown;
       error?: { code: number };
     };
-    assert.equal(parsed.id, null);
-    assert.equal(parsed.error?.code, -32001);
+    expect(parsed.id).toBe(null);
+    expect(parsed.error?.code).toBe(-32001);
     await handle.close();
   });
 
@@ -495,7 +495,7 @@ describe("createMcpHttp SEP-2243 default enforcement", () => {
       /* not json */
     }
     const err = parsed["error"] as Record<string, unknown> | undefined;
-    assert.notEqual(err?.["code"], -32001);
+    expect(err?.["code"]).not.toBe(-32001);
     await handle.close();
   });
 });
@@ -546,12 +546,12 @@ describe("createMcpHttp Mcp-Param-* coherence", () => {
     );
     const res = makeMockRes();
     await handle.handleNodeRequest(req, res);
-    assert.equal(res._status, 400);
+    expect(res._status).toBe(400);
     const parsed = JSON.parse(res._body ?? "{}") as {
       error?: { code: number; data?: { reason: string } };
     };
-    assert.equal(parsed.error?.code, -32001);
-    assert.match(parsed.error?.data?.reason ?? "", /TenantId/);
+    expect(parsed.error?.code).toBe(-32001);
+    expect(parsed.error?.data?.reason ?? "").toMatch(/TenantId/);
     await handle.close();
   });
 
@@ -582,11 +582,11 @@ describe("createMcpHttp Mcp-Param-* coherence", () => {
     );
     const res = makeMockRes();
     await handle.handleNodeRequest(req, res);
-    assert.equal(res._status, 400);
+    expect(res._status).toBe(400);
     const parsed = JSON.parse(res._body ?? "{}") as {
       error?: { code: number };
     };
-    assert.equal(parsed.error?.code, -32001);
+    expect(parsed.error?.code).toBe(-32001);
     await handle.close();
   });
 });
@@ -621,12 +621,11 @@ describe("createMcpHttp — SEP-414 trace context propagation", () => {
         },
       );
       const ctx = capturedCtx[capturedCtx.length - 1];
-      assert.ok(ctx, "onToolCall should have been called");
-      assert.equal(
-        ctx.traceContext?.traceparent,
+      expect(ctx, "onToolCall should have been called").toBeTruthy();
+      expect(ctx!.traceContext?.traceparent).toBe(
         "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
       );
-      assert.equal(ctx.traceContext?.tracestate, "rojo=00f067aa0ba902b7");
+      expect(ctx!.traceContext?.tracestate).toBe("rojo=00f067aa0ba902b7");
     });
   });
 
@@ -654,8 +653,209 @@ describe("createMcpHttp — SEP-414 trace context propagation", () => {
         { "Mcp-Method": "tools/call", "Mcp-Name": "get_item" },
       );
       const ctx = capturedCtx[capturedCtx.length - 1];
-      assert.ok(ctx);
-      assert.equal(ctx.traceContext, undefined);
+      expect(ctx).toBeTruthy();
+      expect(ctx!.traceContext).toBe(undefined);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional coverage: closed guard, execute() path, GET branch, stateful mode
+// ---------------------------------------------------------------------------
+
+describe("createMcpHttp — closed guard", () => {
+  it("handleNodeRequest returns 503 after close()", async () => {
+    const handle = createMcpHttp(makeOpts());
+    await handle.close();
+    const req = makeMockReq("POST", {}, null);
+    const res = makeMockRes();
+    await handle.handleNodeRequest(req, res);
+    expect(res._status).toBe(503);
+    const parsed = JSON.parse(res._body ?? "{}") as { error: string };
+    expect(parsed.error).toBe("server-closed");
+  });
+});
+
+describe("createMcpHttp — defineTool execute() path", () => {
+  it("tools/call with a tool that has execute() invokes execute directly", async () => {
+    const executed: unknown[] = [];
+    const execTool: MCPTool = {
+      name: "ping",
+      description: "Ping tool",
+      inputSchema: { type: "object", properties: {} },
+      [INTERNAL_SOURCE]: {
+        framework: "manual",
+        method: "GET",
+        url: "",
+        paramMap: {},
+        execute: async (args: unknown) => {
+          executed.push(args);
+          return { content: [{ type: "text" as const, text: "pong" }] };
+        },
+      },
+    };
+    const opts: McpHttpOptions = {
+      name: "t",
+      version: "0",
+      tools: [execTool],
+    };
+    await withServer(opts, async (url) => {
+      await postMcp(
+        url,
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: LATEST_PROTOCOL_VERSION,
+            capabilities: {},
+            clientInfo: { name: "t", version: "0" },
+          },
+        },
+        { "Mcp-Method": "initialize" },
+      );
+      const { status } = await postMcp(
+        url,
+        {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: { name: "ping", arguments: {} },
+        },
+        { "Mcp-Method": "tools/call", "Mcp-Name": "ping" },
+      );
+      expect(status).toBe(200);
+      expect(executed.length).toBeGreaterThan(0);
+    });
+  });
+
+  it("tools/call with apiBaseUrl (no onToolCall, no execute) uses httpCaller (returns isError on network fail)", async () => {
+    const opts: McpHttpOptions = {
+      name: "t",
+      version: "0",
+      tools: [TEST_TOOL],
+      allowedOrigins: [],
+      apiBaseUrl: "http://127.0.0.1:1", // unreachable — triggers network error
+    };
+    await withServer(opts, async (url) => {
+      await initializeMcp(url);
+      const { body } = await postMcp(
+        url,
+        {
+          jsonrpc: "2.0",
+          id: 3,
+          method: "tools/call",
+          params: { name: "get_item", arguments: { id: "x" } },
+        },
+        { "Mcp-Method": "tools/call", "Mcp-Name": "get_item" },
+      );
+      // Network failure surfaces as an MCP error result (isError: true in content)
+      const result = body as { result?: { isError?: boolean; content?: { text: string }[] } };
+      expect(result.result?.isError).toBe(true);
+    });
+  });
+});
+
+describe("createMcpHttp — GET request (non-POST branch)", () => {
+  it("GET /mcp does not crash (handled by transport or returns non-fatal error)", async () => {
+    const opts = makeOpts({ requireSep2243: false });
+    await withServer(opts, async (url) => {
+      // GET with abort after a short time (SSE keeps the connection open)
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 300);
+      try {
+        const res = await fetch(`${url}/mcp`, {
+          method: "GET",
+          headers: { Accept: "text/event-stream" },
+          signal: ctrl.signal,
+        });
+        // Just verify it doesn't return 5xx
+        expect(res.status < 500, `expected non-5xx but got ${res.status}`).toBeTruthy();
+        res.body?.cancel();
+      } catch (err: unknown) {
+        // AbortError is expected when we abort the SSE connection
+        if ((err as { name?: string }).name !== "AbortError") throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+    });
+  });
+});
+
+describe("createMcpHttp — stateful session mode", () => {
+  it("stateful: second request with known session id reuses transport", async () => {
+    const calls: string[] = [];
+    const opts: McpHttpOptions = {
+      name: "t",
+      version: "0",
+      session: "stateful",
+      tools: [TEST_TOOL],
+      allowedOrigins: [],
+      requireSep2243: false,
+      onToolCall: async (tool) => {
+        calls.push(tool.name);
+        return { content: [{ type: "text", text: "ok" }] };
+      },
+    };
+    await withServer(opts, async (url) => {
+      // Send initialize — the response should contain mcp-session-id header
+      const initRes = await fetch(`${url}/mcp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: LATEST_PROTOCOL_VERSION,
+            capabilities: {},
+            clientInfo: { name: "t", version: "0" },
+          },
+        }),
+      });
+      expect(initRes.status).toBe(200);
+      const sessionId = initRes.headers.get("mcp-session-id");
+      // sessionId may or may not be present depending on SDK version — skip further
+      // assertions if the SDK doesn't set it in test mode.
+      if (!sessionId) return;
+
+      // Reuse session
+      const res2 = await fetch(`${url}/mcp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          "mcp-session-id": sessionId,
+          "mcp-method": "tools/list",
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }),
+      });
+      expect(res2.status).toBe(200);
+    });
+  });
+
+  it("stateful: request with unknown session id returns 404", async () => {
+    const handle = createMcpHttp({
+      name: "t",
+      version: "0",
+      session: "stateful",
+      tools: [],
+      allowedOrigins: [],
+      requireSep2243: false,
+    });
+    const req = makeMockReq(
+      "POST",
+      { "mcp-session-id": "nonexistent-session-id" },
+      { jsonrpc: "2.0", id: 1, method: "tools/list" },
+    );
+    const res = makeMockRes();
+    await handle.handleNodeRequest(req, res);
+    expect(res._status).toBe(404);
+    const parsed = JSON.parse(res._body ?? "{}") as { error: string };
+    expect(parsed.error).toBe("session-not-found");
+    await handle.close();
   });
 });

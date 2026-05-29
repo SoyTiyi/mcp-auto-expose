@@ -4,13 +4,12 @@ import {
   validateAndMergeHeaderParams,
   MCP_PARAM_PREFIX,
 } from "./headerParams.js";
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it, expect } from "vitest";
 
 describe("headerParams shim", () => {
   it("re-exports from core", () => {
-    assert.equal(typeof encodeHeaderValue, "function");
-    assert.equal(typeof validateAndMergeHeaderParams, "function");
-    assert.equal(MCP_PARAM_PREFIX, "mcp-param-");
+    expect(typeof encodeHeaderValue).toBe("function");
+    expect(typeof validateAndMergeHeaderParams).toBe("function");
+    expect(MCP_PARAM_PREFIX).toBe("mcp-param-");
   });
 });

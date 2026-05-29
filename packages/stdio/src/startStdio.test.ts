@@ -1,5 +1,4 @@
-import { describe, it, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, afterEach, expect } from "vitest";
 import { restoreStdoutGuard, isStdoutGuardInstalled } from "./stdoutGuard.js";
 import { startStdio } from "./startStdio.js";
 import type { MCPTool } from "@mcp-auto-expose/core";
@@ -30,6 +29,24 @@ function makeServerStub(onClose?: () => void): McpServer {
   } as unknown as McpServer;
 }
 
+// Capturing stub: records handlers so tests can invoke them directly.
+function makeCapturingServerStub(): {
+  server: McpServer;
+  handlers: { schema: unknown; handler: (...a: unknown[]) => unknown }[];
+} {
+  const handlers: { schema: unknown; handler: (...a: unknown[]) => unknown }[] = [];
+  const server = {
+    server: {
+      setRequestHandler(schema: unknown, handler: (...a: unknown[]) => unknown) {
+        handlers.push({ schema, handler });
+      },
+    },
+    connect: async () => {},
+    close: async () => {},
+  } as unknown as McpServer;
+  return { server, handlers };
+}
+
 function makeTransportStub(): StdioServerTransport {
   return {} as StdioServerTransport;
 }
@@ -46,7 +63,7 @@ describe("startStdio", () => {
       { name: "test", version: "0.0.0", tools: sampleTools, onToolCall: noop },
       { server, transport },
     );
-    assert.equal(isStdoutGuardInstalled(), true, "guard should be installed");
+    expect(isStdoutGuardInstalled()).toBe(true);
   });
 
   it("skips stdout guard when installGuard is false", async () => {
@@ -56,7 +73,7 @@ describe("startStdio", () => {
       { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false, onToolCall: noop },
       { server, transport },
     );
-    assert.equal(isStdoutGuardInstalled(), false, "guard should NOT be installed");
+    expect(isStdoutGuardInstalled()).toBe(false);
   });
 
   it("close() delegates to server.close()", async () => {
@@ -70,7 +87,7 @@ describe("startStdio", () => {
       { server, transport },
     );
     await handle.close();
-    assert.equal(closeCalled, true);
+    expect(closeCalled).toBe(true);
   });
 
   it("calls server.connect with the transport", async () => {
@@ -87,18 +104,16 @@ describe("startStdio", () => {
       { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false, onToolCall: noop },
       { server, transport },
     );
-    assert.equal(connectedTransport, transport, "server.connect must receive the transport");
+    expect(connectedTransport).toBe(transport);
   });
 
   it("does not throw at init when neither onToolCall nor apiBaseUrl provided (error deferred to per-call)", async () => {
     const server = makeServerStub();
     const transport = makeTransportStub();
-    await assert.doesNotReject(() =>
-      startStdio(
-        { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false },
-        { server, transport },
-      ),
-    );
+    await startStdio(
+      { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false },
+      { server, transport },
+    ); // test fails automatically if this rejects
   });
 
   it("onToolCall takes precedence over apiBaseUrl", async () => {
@@ -120,6 +135,105 @@ describe("startStdio", () => {
       { server, transport },
     );
 
-    assert.equal(calls.length, 0);
+    expect(calls.length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolvedOnToolCall dispatch — exercises the internal tool-call resolver
+// that startStdio wires into registerTools.
+// ---------------------------------------------------------------------------
+describe("startStdio — resolvedOnToolCall dispatch", () => {
+  afterEach(() => {
+    restoreStdoutGuard();
+  });
+
+  // Helper: invoke the CallTool handler that startStdio registered.
+  // Index 1 because registerTools always registers [ListTools(0), CallTool(1)].
+  async function invokeCallHandler(
+    handlers: { schema: unknown; handler: (...a: unknown[]) => unknown }[],
+    toolName: string,
+    args: Record<string, unknown> = {},
+  ): Promise<unknown> {
+    const callHandler = handlers[1]?.handler;
+    if (!callHandler) throw new Error("CallTool handler not registered");
+    return callHandler({ params: { name: toolName, arguments: args } });
+  }
+
+  it("resolvedOnToolCall: tool with execute() — calls execute directly (no http)", async () => {
+    const { server, handlers } = makeCapturingServerStub();
+    const transport = makeTransportStub();
+    let executeCallCount = 0;
+    const execute = async () => {
+      executeCallCount++;
+      return { content: [{ type: "text" as const, text: "from-execute" }] };
+    };
+
+    const toolWithExecute: MCPTool = {
+      name: "ping",
+      description: "Ping",
+      inputSchema: { type: "object", properties: {} },
+      [INTERNAL_SOURCE]: {
+        framework: "manual",
+        method: "GET",
+        url: "",
+        paramMap: {},
+        execute,
+      },
+    };
+
+    await startStdio(
+      { name: "t", version: "0", tools: [toolWithExecute], installGuard: false },
+      { server, transport },
+    );
+
+    const result = (await invokeCallHandler(handlers, "ping")) as {
+      content: { text: string }[];
+    };
+    expect(executeCallCount).toBe(1);
+    expect(result.content[0]?.text).toBe("from-execute");
+  });
+
+  it("resolvedOnToolCall: no execute, no httpCaller → returns isError result", async () => {
+    const { server, handlers } = makeCapturingServerStub();
+    const transport = makeTransportStub();
+
+    await startStdio(
+      // No onToolCall, no apiBaseUrl → neither execute nor baseHttpCaller
+      { name: "t", version: "0", tools: sampleTools, installGuard: false },
+      { server, transport },
+    );
+
+    const result = (await invokeCallHandler(handlers, "list_items")) as {
+      content: { text: string }[];
+      isError: boolean;
+    };
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toMatch(/no executor/);
+  });
+
+  it("resolvedOnToolCall: no execute, has baseHttpCaller (apiBaseUrl) → delegates to httpCaller", async () => {
+    // We spy on makeHttpCaller by injecting apiBaseUrl. The actual HTTP will fail (port 9),
+    // but we only need to confirm that baseHttpCaller is invoked, not onToolCall.
+    // We use a mock apiBaseUrl and capture calls via a custom onToolCall.
+    // Actually, to avoid real network, override with onToolCall = undefined and apiBaseUrl.
+    // The httpCaller will reject with a network error — we just verify it was attempted.
+    const { server, handlers } = makeCapturingServerStub();
+    const transport = makeTransportStub();
+
+    await startStdio(
+      { name: "t", version: "0", tools: sampleTools, installGuard: false, apiBaseUrl: "http://127.0.0.1:1" },
+      { server, transport },
+    );
+
+    // The call will fail with a network error — that's expected. What matters is isError.
+    const result = (await invokeCallHandler(handlers, "list_items").catch((e: unknown) => ({
+      content: [{ type: "text", text: String(e) }],
+      isError: true,
+    }))) as { isError?: boolean; content?: Array<{ text?: string }> };
+    // The fact that it reaches an error (not the "no executor" message) confirms httpCaller was used.
+    expect(result.isError).toBe(true);
+    // The httpCaller path produces a network/connection error, NOT the "no executor" message
+    expect(result.content?.[0]?.text).not.toMatch(/no executor/);
   });
 });

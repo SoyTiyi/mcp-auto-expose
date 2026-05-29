@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import Fastify, { type FastifySchema } from "fastify";
 import { autoExpose } from "./plugin.js";
 
@@ -59,26 +58,26 @@ describe("autoExpose plugin — 3-route CRUD integration", () => {
     await app.ready();
 
     const tools = app.mcpAutoExpose.tools();
-    assert.equal(tools.length, 3);
+    expect(tools.length).toBe(3);
 
     // sorted alphabetically by name
-    assert.equal(tools[0]?.name, "create_users");
-    assert.equal(tools[1]?.name, "get_users_by_id");
-    assert.equal(tools[2]?.name, "list_users");
+    expect(tools[0]?.name).toBe("create_users");
+    expect(tools[1]?.name).toBe("get_users_by_id");
+    expect(tools[2]?.name).toBe("list_users");
 
     // get_users_by_id has `id`
     const byId = tools[1]?.inputSchema.properties;
-    assert.ok(byId);
-    assert.ok("id" in byId);
+    expect(byId).toBeTruthy();
+    expect("id" in byId!).toBeTruthy();
 
     // create_users has name + email
     const createProps = tools[0]?.inputSchema.properties;
-    assert.ok(createProps);
-    assert.ok("name" in createProps);
-    assert.ok("email" in createProps);
+    expect(createProps).toBeTruthy();
+    expect("name" in createProps!).toBeTruthy();
+    expect("email" in createProps!).toBeTruthy();
 
     // description preserved
-    assert.equal(tools[2]?.description, "Listar usuarios");
+    expect(tools[2]?.description).toBe("Listar usuarios");
 
     await app.close();
   });
@@ -94,11 +93,11 @@ describe("autoExpose plugin — route without schema", () => {
     await app.ready();
 
     const tools = app.mcpAutoExpose.tools();
-    assert.equal(tools.length, 1);
+    expect(tools.length).toBe(1);
     const tool = tools[0];
-    assert.ok(tool);
-    assert.equal(tool.name, "list_ping");
-    assert.deepEqual(tool.inputSchema, { type: "object", properties: {} });
+    expect(tool).toBeTruthy();
+    expect(tool!.name).toBe("list_ping");
+    expect(tool!.inputSchema).toEqual({ type: "object", properties: {} });
 
     await app.close();
   });
@@ -114,7 +113,7 @@ describe("autoExpose plugin — strictSchema option", () => {
     await app.ready();
 
     const tools = app.mcpAutoExpose.tools();
-    assert.equal(tools.length, 0);
+    expect(tools.length).toBe(0);
 
     await app.close();
   });
@@ -140,8 +139,8 @@ describe("autoExpose plugin — strictSchema option", () => {
     await app.ready();
 
     const tools = app.mcpAutoExpose.tools();
-    assert.equal(tools.length, 1);
-    assert.equal(tools[0]?.name, "create_items");
+    expect(tools.length).toBe(1);
+    expect(tools[0]?.name).toBe("create_items");
 
     await app.close();
   });
@@ -165,8 +164,8 @@ describe("autoExpose plugin — schema.hide excludes route", () => {
     await app.ready();
 
     const tools = app.mcpAutoExpose.tools();
-    assert.equal(tools.length, 1);
-    assert.equal(tools[0]?.name, "list_public");
+    expect(tools.length).toBe(1);
+    expect(tools[0]?.name).toBe("list_public");
 
     await app.close();
   });

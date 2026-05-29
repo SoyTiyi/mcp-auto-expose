@@ -1,64 +1,62 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { createHash } from "node:crypto";
 import { generateToolName } from "./toolName.js";
 
 describe("generateToolName - CRUD table", () => {
   it("GET /api/users → list_users (no params)", () => {
-    assert.equal(generateToolName("GET", "/api/users"), "list_users");
+    expect(generateToolName("GET", "/api/users")).toBe("list_users");
   });
 
   it("GET /api/users/:id → get_users_by_id (colon param)", () => {
-    assert.equal(generateToolName("GET", "/api/users/:id"), "get_users_by_id");
+    expect(generateToolName("GET", "/api/users/:id")).toBe("get_users_by_id");
   });
 
   it("GET /api/teams/:teamId/users/:userId → get_users_by_team_id_and_user_id (multiple params)", () => {
-    assert.equal(
-      generateToolName("GET", "/api/teams/:teamId/users/:userId"),
+    expect(generateToolName("GET", "/api/teams/:teamId/users/:userId")).toBe(
       "get_users_by_team_id_and_user_id",
     );
   });
 
   it("POST /api/users → create_users", () => {
-    assert.equal(generateToolName("POST", "/api/users"), "create_users");
+    expect(generateToolName("POST", "/api/users")).toBe("create_users");
   });
 
   it("PUT /api/users/:id → replace_users_by_id", () => {
-    assert.equal(generateToolName("PUT", "/api/users/:id"), "replace_users_by_id");
+    expect(generateToolName("PUT", "/api/users/:id")).toBe("replace_users_by_id");
   });
 
   it("PUT /api/users (no params) → replace_users", () => {
-    assert.equal(generateToolName("PUT", "/api/users"), "replace_users");
+    expect(generateToolName("PUT", "/api/users")).toBe("replace_users");
   });
 
   it("PATCH /api/users/:id → update_users_by_id", () => {
-    assert.equal(generateToolName("PATCH", "/api/users/:id"), "update_users_by_id");
+    expect(generateToolName("PATCH", "/api/users/:id")).toBe("update_users_by_id");
   });
 
   it("PATCH /api/users (no params) → update_users", () => {
-    assert.equal(generateToolName("PATCH", "/api/users"), "update_users");
+    expect(generateToolName("PATCH", "/api/users")).toBe("update_users");
   });
 
   it("DELETE /api/users/:id → delete_users_by_id", () => {
-    assert.equal(generateToolName("DELETE", "/api/users/:id"), "delete_users_by_id");
+    expect(generateToolName("DELETE", "/api/users/:id")).toBe("delete_users_by_id");
   });
 
   it("DELETE /api/users (no params) → delete_users", () => {
-    assert.equal(generateToolName("DELETE", "/api/users"), "delete_users");
+    expect(generateToolName("DELETE", "/api/users")).toBe("delete_users");
   });
 
   it("OPTIONS /api/users → options_users (HEAD/OPTIONS pattern)", () => {
-    assert.equal(generateToolName("OPTIONS", "/api/users"), "options_users");
+    expect(generateToolName("OPTIONS", "/api/users")).toBe("options_users");
   });
 
   it("HEAD /api/users → head_users (HEAD/OPTIONS pattern)", () => {
-    assert.equal(generateToolName("HEAD", "/api/users"), "head_users");
+    expect(generateToolName("HEAD", "/api/users")).toBe("head_users");
   });
 });
 
 describe("generateToolName - curly brace params", () => {
   it("GET /api/users/{id} → get_users_by_id", () => {
-    assert.equal(generateToolName("GET", "/api/users/{id}"), "get_users_by_id");
+    expect(generateToolName("GET", "/api/users/{id}")).toBe("get_users_by_id");
   });
 });
 
@@ -74,13 +72,13 @@ describe("generateToolName - truncation", () => {
       "/api/very-long-resource-name-that-will-exceed-the-limit/:parameterNameThatIsAlsoLong";
     const result = generateToolName(method, url);
 
-    assert.equal(result.length, 64, `Expected length 64, got ${result.length}: "${result}"`);
+    expect(result.length, `Expected length 64, got ${result.length}: "${result}"`).toBe(64);
 
     const expectedHash = createHash("sha256").update(`${method}:${url}`).digest("hex").slice(0, 6);
 
-    assert.ok(
+    expect(
       result.endsWith(`_h${expectedHash}`),
       `Expected result to end with "_h${expectedHash}", got: "${result}"`,
-    );
+    ).toBeTruthy();
   });
 });

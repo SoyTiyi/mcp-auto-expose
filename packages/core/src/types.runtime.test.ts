@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import type {
   MCPTool,
   MCPToolInputSchema,
@@ -12,8 +11,8 @@ import { INTERNAL_SOURCE } from "./internal.js";
 describe("HTTPMethod", () => {
   it("accepts valid HTTP methods", () => {
     const methods: HTTPMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
-    assert.equal(methods.length, 7);
-    assert.equal(methods[0], "GET");
+    expect(methods.length).toBe(7);
+    expect(methods[0]).toBe("GET");
   });
 });
 
@@ -26,8 +25,8 @@ describe("MCPToolInputSchema", () => {
         age: { type: "number" },
       },
     };
-    assert.equal(schema.type, "object");
-    assert.ok(["name", "age"].every((k) => k in schema.properties));
+    expect(schema.type).toBe("object");
+    expect(["name", "age"].every((k) => k in schema.properties)).toBeTruthy();
   });
 
   it("accepts schema with required fields", () => {
@@ -38,8 +37,8 @@ describe("MCPToolInputSchema", () => {
       },
       required: ["id"],
     };
-    assert.equal(schema.required?.length, 1);
-    assert.equal(schema.required?.[0], "id");
+    expect(schema.required?.length).toBe(1);
+    expect(schema.required?.[0]).toBe("id");
   });
 });
 
@@ -54,17 +53,17 @@ describe("RouteSchema", () => {
       tags: ["users"],
       hide: false,
     };
-    assert.equal(schema.description, "Get a user by ID");
-    assert.equal(schema.summary, "Get user");
-    assert.deepEqual(schema.tags, ["users"]);
+    expect(schema.description).toBe("Get a user by ID");
+    expect(schema.summary).toBe("Get user");
+    expect(schema.tags).toEqual(["users"]);
   });
 
   it("accepts RouteSchema with minimal fields", () => {
     const schema: RouteSchema = {
       description: "List all users",
     };
-    assert.equal(schema.description, "List all users");
-    assert.equal(schema.querystring, undefined);
+    expect(schema.description).toBe("List all users");
+    expect(schema.querystring).toBe(undefined);
   });
 });
 
@@ -75,9 +74,9 @@ describe("RouteDescriptor", () => {
       method: "GET",
       url: "/users",
     };
-    assert.equal(descriptor.framework, "fastify");
-    assert.equal(descriptor.method, "GET");
-    assert.equal(descriptor.url, "/users");
+    expect(descriptor.framework).toBe("fastify");
+    expect(descriptor.method).toBe("GET");
+    expect(descriptor.url).toBe("/users");
   });
 
   it("accepts RouteDescriptor with schema", () => {
@@ -90,8 +89,8 @@ describe("RouteDescriptor", () => {
         description: "Create a user",
       },
     };
-    assert.equal(descriptor.framework, "express");
-    assert.equal(descriptor.schema?.description, "Create a user");
+    expect(descriptor.framework).toBe("express");
+    expect(descriptor.schema?.description).toBe("Create a user");
   });
 });
 
@@ -103,13 +102,13 @@ describe("MCPTool", () => {
       inputSchema: { type: "object", properties: {} },
       [INTERNAL_SOURCE]: { framework: "fastify", method: "GET", url: "/users", paramMap: {} },
     };
-    assert.equal(tool.name, "list_users");
-    assert.equal(tool.description, "List all users");
-    assert.equal(tool.inputSchema.type, "object");
+    expect(tool.name).toBe("list_users");
+    expect(tool.description).toBe("List all users");
+    expect(tool.inputSchema.type).toBe("object");
     const src1 = tool[INTERNAL_SOURCE]!;
-    assert.equal(src1.framework, "fastify");
-    assert.equal(src1.method, "GET");
-    assert.equal(src1.url, "/users");
+    expect(src1.framework).toBe("fastify");
+    expect(src1.method).toBe("GET");
+    expect(src1.url).toBe("/users");
   });
 
   it("accepts MCPTool with complex inputSchema", () => {
@@ -132,7 +131,7 @@ describe("MCPTool", () => {
         paramMap: { name: "body", email: "body" },
       },
     };
-    assert.equal(tool.inputSchema.required?.length, 2);
-    assert.equal(tool[INTERNAL_SOURCE]!.method, "POST");
+    expect(tool.inputSchema.required?.length).toBe(2);
+    expect(tool[INTERNAL_SOURCE]!.method).toBe("POST");
   });
 });

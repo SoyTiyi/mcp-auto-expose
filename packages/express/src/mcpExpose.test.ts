@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { mcpExpose, MCP_EXPOSE_SYMBOL } from "./mcpExpose.js";
 import type { RouteSchema } from "@mcp-auto-expose/core";
@@ -13,7 +12,7 @@ function getSchema(fn: ReturnType<typeof mcpExpose>): RouteSchema {
 describe("mcpExpose — return value", () => {
   it("mcpExpose({}) returns a function", () => {
     const result = mcpExpose({});
-    assert.equal(typeof result, "function");
+    expect(typeof result).toBe("function");
   });
 });
 
@@ -27,7 +26,7 @@ describe("mcpExpose — middleware behaviour", () => {
       callCount++;
     };
     fn(req, res, next);
-    assert.equal(callCount, 1);
+    expect(callCount).toBe(1);
   });
 });
 
@@ -35,20 +34,20 @@ describe("mcpExpose — MCP_EXPOSE_SYMBOL metadata", () => {
   it("middleware has a non-null object attached at MCP_EXPOSE_SYMBOL", () => {
     const fn = mcpExpose({});
     const schema = getSchema(fn);
-    assert.ok(schema !== null && typeof schema === "object");
+    expect(schema !== null && typeof schema === "object").toBeTruthy();
   });
 
   it("mcpExpose({ query: z.string() }) → .querystring defined, .body undefined", () => {
     const fn = mcpExpose({ query: z.string() });
     const schema = getSchema(fn);
-    assert.ok(schema.querystring !== undefined, "querystring should be defined");
-    assert.equal(schema.body, undefined);
+    expect(schema.querystring !== undefined, "querystring should be defined").toBeTruthy();
+    expect(schema.body).toBe(undefined);
   });
 
   it("mcpExpose({ hide: true }) → schema.hide === true", () => {
     const fn = mcpExpose({ hide: true });
     const schema = getSchema(fn);
-    assert.equal(schema.hide, true);
+    expect(schema.hide).toBe(true);
   });
 
   it("mcpExpose({ tags: ['x'] }) → stored tags is a copy; mutating original does not affect stored", () => {
@@ -57,6 +56,6 @@ describe("mcpExpose — MCP_EXPOSE_SYMBOL metadata", () => {
     const schema = getSchema(fn);
     // Mutate original
     tags.push("y");
-    assert.deepEqual(schema.tags, ["x"]);
+    expect(schema.tags).toEqual(["x"]);
   });
 });
