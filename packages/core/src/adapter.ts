@@ -1,6 +1,5 @@
-import type { RouteDescriptor } from "./types.js";
+import type { RouteDescriptor, ToolCallResult as CallToolResult } from "./types.js";
 import type { ReconstructedRequest } from "./reconstructRequest.js";
-import type { CallToolResult } from "./httpCaller.js";
 
 /**
  * Contrato canónico que cualquier adaptador de framework debe implementar.

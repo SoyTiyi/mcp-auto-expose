@@ -41,8 +41,8 @@ export interface McpHttpOptions {
   sessionIdGenerator?: () => string;
   enableJsonResponse?: boolean;
   warnOnNonLocalhost?: boolean;
-  /** Enforce SEP-2243 header coherence (Mcp-Method + Mcp-Name). Default false.
-   *  Enable in browser-facing deployments to mitigate CSRF/DNS-rebinding. */
+  /** Enforce SEP-2243 header coherence (Mcp-Method + Mcp-Name). Default true.
+   *  Disable only for testing or non-browser deployments where CSRF risk is absent. */
   requireSep2243?: boolean;
   tools: MCPTool[];
   name: string;
