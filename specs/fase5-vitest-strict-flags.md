@@ -3,6 +3,7 @@
 > **Status:** Approved — implementation in progress.
 > **Methodology:** Spec-Driven Development (SDD).
 > **Approved predecessors:** Phase 1 (Fastify), Phase 2 (stdio), Phase 3 (Express), Phase 4 (Streamable HTTP).
+> **Principal document anchor:** WORLDCLASS_ROADMAP.md (T9: Strict tsconfig flags, T10: Vitest migration — dev-quality sprint not covered by principal document).
 
 ---
 
@@ -348,7 +349,7 @@ Setting `thresholds: { lines: 90 }` in each package's `vitest.config.ts` gates t
 
 ### 5.3 ESLint compatibility
 
-ESLint configurations in each package already support Vitest globals (`describe`, `it`, `expect`, `beforeAll`, etc.) via the `@repo/eslint-config` base. No ESLint config changes needed.
+Test files use explicit imports from `vitest` (e.g., `import { describe, it, expect } from "vitest"`), not global mode. No ESLint configuration changes are needed for Vitest global support.
 
 ### 5.4 Suppression audit
 
