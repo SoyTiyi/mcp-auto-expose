@@ -1,12 +1,11 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { flattenSchema, buildToolSchema, renameOnCollision } from "./flattenSchema.js";
 
 describe("flattenSchema", () => {
   it("1. undefined → returns { type: 'object', properties: {} } with no required key", () => {
     const result = flattenSchema(undefined);
-    assert.deepEqual(result, { type: "object", properties: {} });
-    assert.ok(!("required" in result), "should have no 'required' key");
+    expect(result).toEqual({ type: "object", properties: {} });
+    expect("required" in result, "should have no 'required' key").toBeFalsy();
   });
 
   it("2. params only — properties merged, required preserved", () => {
@@ -17,7 +16,7 @@ describe("flattenSchema", () => {
         required: ["id"],
       },
     });
-    assert.deepEqual(result, {
+    expect(result).toEqual({
       type: "object",
       properties: { id: { type: "string" } },
       required: ["id"],
@@ -36,7 +35,7 @@ describe("flattenSchema", () => {
         required: ["name"],
       },
     });
-    assert.deepEqual(result, {
+    expect(result).toEqual({
       type: "object",
       properties: {
         search: { type: "string" },
@@ -60,7 +59,7 @@ describe("flattenSchema", () => {
         required: ["id"],
       },
     });
-    assert.deepEqual(result, {
+    expect(result).toEqual({
       type: "object",
       properties: {
         id: { type: "string" },
@@ -74,11 +73,11 @@ describe("flattenSchema", () => {
     const result = flattenSchema({
       body: { type: "string" },
     });
-    assert.deepEqual(result, {
+    expect(result).toEqual({
       type: "object",
       properties: { body: { type: "string" } },
     });
-    assert.ok(!("required" in result), "should have no 'required' key");
+    expect("required" in result, "should have no 'required' key").toBeFalsy();
   });
 
   it("6. $ref in a property schema — property is skipped, no error thrown", () => {
@@ -107,12 +106,12 @@ describe("flattenSchema", () => {
     }
 
     // 'user' ($ref) is skipped; 'name' is present
-    assert.ok(!("user" in result.properties), "'user' should be skipped");
-    assert.ok("name" in result.properties, "'name' should be present");
-    assert.deepEqual(result.properties.name, { type: "string" });
+    expect("user" in result.properties, "'user' should be skipped").toBeFalsy();
+    expect("name" in result.properties, "'name' should be present").toBeTruthy();
+    expect(result.properties.name).toEqual({ type: "string" });
     // required: 'user' is skipped (since it was a $ref), 'name' is included
-    assert.deepEqual(result.required, ["name"]);
-    assert.ok(stderrOutput.includes("$ref"), "stderr should mention $ref skip");
+    expect(result.required).toEqual(["name"]);
+    expect(stderrOutput.includes("$ref"), "stderr should mention $ref skip").toBeTruthy();
   });
 
   it("7. required fields — combined from params and body correctly", () => {
@@ -134,7 +133,7 @@ describe("flattenSchema", () => {
         required: ["title"],
       },
     });
-    assert.deepEqual(result, {
+    expect(result).toEqual({
       type: "object",
       properties: {
         teamId: { type: "string" },
@@ -156,8 +155,8 @@ describe("buildToolSchema — paramMap", () => {
         required: ["id"],
       },
     });
-    assert.deepEqual(inputSchema.properties, { id: { type: "string" }, slug: { type: "string" } });
-    assert.deepEqual(paramMap, { id: "params", slug: "params" });
+    expect(inputSchema.properties).toEqual({ id: { type: "string" }, slug: { type: "string" } });
+    expect(paramMap).toEqual({ id: "params", slug: "params" });
   });
 
   it("2. params + body collision — renamed key keeps body origin", () => {
@@ -173,19 +172,19 @@ describe("buildToolSchema — paramMap", () => {
         required: ["id"],
       },
     });
-    assert.ok("id" in inputSchema.properties, "id from params present");
-    assert.ok("body_id" in inputSchema.properties, "body_id (renamed) present");
-    assert.equal(paramMap["id"], "params");
-    assert.equal(paramMap["body_id"], "body");
-    assert.equal(paramMap["email"], "body");
+    expect("id" in inputSchema.properties, "id from params present").toBeTruthy();
+    expect("body_id" in inputSchema.properties, "body_id (renamed) present").toBeTruthy();
+    expect(paramMap["id"]).toBe("params");
+    expect(paramMap["body_id"]).toBe("body");
+    expect(paramMap["email"]).toBe("body");
   });
 
   it("3. body primitive (non-object) — wrapped under 'body' key, paramMap has body: 'body'", () => {
     const { inputSchema, paramMap } = buildToolSchema({
       body: { type: "string" },
     });
-    assert.ok("body" in inputSchema.properties, "'body' key should be present");
-    assert.deepEqual(paramMap, { body: "body" });
+    expect("body" in inputSchema.properties, "'body' key should be present").toBeTruthy();
+    expect(paramMap).toEqual({ body: "body" });
   });
 
   it("4. $ref-skipped property — does NOT appear in paramMap", () => {
@@ -207,8 +206,8 @@ describe("buildToolSchema — paramMap", () => {
       process.stderr.write = originalWrite;
     }
 
-    assert.ok(!("user" in result.paramMap), "'user' ($ref) must not be in paramMap");
-    assert.equal(result.paramMap["name"], "body");
+    expect("user" in result.paramMap, "'user' ($ref) must not be in paramMap").toBeFalsy();
+    expect(result.paramMap["name"]).toBe("body");
   });
 
   it("5. querystring properties — paramMap keys map to 'querystring'", () => {
@@ -218,7 +217,7 @@ describe("buildToolSchema — paramMap", () => {
         properties: { page: { type: "number" }, limit: { type: "number" } },
       },
     });
-    assert.deepEqual(paramMap, { page: "querystring", limit: "querystring" });
+    expect(paramMap).toEqual({ page: "querystring", limit: "querystring" });
   });
 
   it("6. mixed params + querystring + body — all origins recorded", () => {
@@ -227,9 +226,9 @@ describe("buildToolSchema — paramMap", () => {
       querystring: { type: "object", properties: { format: { type: "string" } } },
       body: { type: "object", properties: { name: { type: "string" } } },
     });
-    assert.equal(paramMap["id"], "params");
-    assert.equal(paramMap["format"], "querystring");
-    assert.equal(paramMap["name"], "body");
+    expect(paramMap["id"]).toBe("params");
+    expect(paramMap["format"]).toBe("querystring");
+    expect(paramMap["name"]).toBe("body");
   });
 });
 
@@ -247,7 +246,7 @@ describe("renameOnCollision", () => {
 
     process.stderr.write = originalWrite;
 
-    assert.equal(result, "body_id");
-    assert.ok(stderrOutput.includes("body_id"), "stderr should mention renamed key");
+    expect(result).toBe("body_id");
+    expect(stderrOutput.includes("body_id"), "stderr should mention renamed key").toBeTruthy();
   });
 });

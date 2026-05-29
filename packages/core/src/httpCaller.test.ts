@@ -1,5 +1,4 @@
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import * as http from "node:http";
 import { makeHttpCaller } from "./httpCaller.js";
 import type { MCPTool } from "./types.js";
@@ -77,7 +76,7 @@ describe("makeHttpCaller", () => {
   let closeServer: () => Promise<void>;
   let lastRequest: () => TestRequest | undefined;
 
-  before(async () => {
+  beforeAll(async () => {
     ({
       baseUrl,
       close: closeServer,
@@ -91,7 +90,7 @@ describe("makeHttpCaller", () => {
     }));
   });
 
-  after(async () => {
+  afterAll(async () => {
     await closeServer();
   });
 
@@ -106,11 +105,11 @@ describe("makeHttpCaller", () => {
       },
     });
     const result = await caller(tool, { id: "u1" });
-    assert.equal(result.isError, undefined);
+    expect(result.isError).toBe(undefined);
     const req = lastRequest()!;
-    assert.equal(req.method, "GET");
-    assert.equal(req.url, "/users/u1");
-    assert.ok(result.content[0]?.text.includes("u1"), "response contains id");
+    expect(req.method).toBe("GET");
+    expect(req.url).toBe("/users/u1");
+    expect(result.content[0]?.text.includes("u1"), "response contains id").toBeTruthy();
   });
 
   it("2. POST with body → JSON sent correctly", async () => {
@@ -125,11 +124,11 @@ describe("makeHttpCaller", () => {
     });
     await caller(tool, { name: "Ana", email: "ana@test.com" });
     const req = lastRequest()!;
-    assert.equal(req.method, "POST");
-    assert.equal(req.headers["content-type"], "application/json");
+    expect(req.method).toBe("POST");
+    expect(req.headers["content-type"]).toBe("application/json");
     const parsed = JSON.parse(req.body) as { name: string; email: string };
-    assert.equal(parsed.name, "Ana");
-    assert.equal(parsed.email, "ana@test.com");
+    expect(parsed.name).toBe("Ana");
+    expect(parsed.email).toBe("ana@test.com");
   });
 
   it("3. Backend returns non-OK → isError: true", async () => {
@@ -143,8 +142,8 @@ describe("makeHttpCaller", () => {
       },
     });
     const result = await caller(tool, {});
-    assert.equal(result.isError, true);
-    assert.ok(result.content[0]?.text.includes("internal"), "error text in response");
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text.includes("internal"), "error text in response").toBeTruthy();
   });
 
   it("4. Timeout → isError: true", async () => {
@@ -163,8 +162,8 @@ describe("makeHttpCaller", () => {
         source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
       });
       const result = await caller(tool, {});
-      assert.equal(result.isError, true);
-      assert.ok((result.content[0]?.text ?? "").length > 0, "error text present");
+      expect(result.isError).toBe(true);
+      expect((result.content[0]?.text ?? "").length > 0, "error text present").toBeTruthy();
     } finally {
       await new Promise<void>((r) => hangServer.close(() => r()));
     }
@@ -189,8 +188,8 @@ describe("makeHttpCaller", () => {
     });
     await caller(tool, { id: "u1", tenant_id: "acme" });
     const req = lastRequest()!;
-    assert.equal(req.headers["mcp-param-tenantid"], "acme");
-    assert.equal(req.url, "/users/u1");
+    expect(req.headers["mcp-param-tenantid"]).toBe("acme");
+    expect(req.url).toBe("/users/u1");
   });
 
   it("6. defaultHeaders forwarded to every request", async () => {
@@ -203,7 +202,7 @@ describe("makeHttpCaller", () => {
     });
     await caller(tool, {});
     const req = lastRequest()!;
-    assert.equal(req.headers["authorization"], "Bearer token123");
+    expect(req.headers["authorization"]).toBe("Bearer token123");
   });
 
   it("7. SEP-414: traceparent/tracestate/baggage forwarded to backend when ctx.traceContext set", async () => {
@@ -220,12 +219,11 @@ describe("makeHttpCaller", () => {
     };
     await caller(tool, {}, ctx);
     const req = lastRequest()!;
-    assert.equal(
-      req.headers["traceparent"],
+    expect(req.headers["traceparent"]).toBe(
       "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
     );
-    assert.equal(req.headers["tracestate"], "rojo=00f067aa0ba902b7");
-    assert.equal(req.headers["baggage"], "userId=alice");
+    expect(req.headers["tracestate"]).toBe("rojo=00f067aa0ba902b7");
+    expect(req.headers["baggage"]).toBe("userId=alice");
   });
 
   it("8. SEP-414: no trace headers forwarded when ctx has no traceContext", async () => {
@@ -235,8 +233,8 @@ describe("makeHttpCaller", () => {
     });
     await caller(tool, {}, {});
     const req = lastRequest()!;
-    assert.equal(req.headers["traceparent"], undefined);
-    assert.equal(req.headers["tracestate"], undefined);
+    expect(req.headers["traceparent"]).toBe(undefined);
+    expect(req.headers["tracestate"]).toBe(undefined);
   });
 
   it("9. SEP-414: only present trace headers are forwarded (partial set)", async () => {
@@ -247,8 +245,8 @@ describe("makeHttpCaller", () => {
     const ctx = { traceContext: { traceparent: "00-abc-def-01" } };
     await caller(tool, {}, ctx);
     const req = lastRequest()!;
-    assert.equal(req.headers["traceparent"], "00-abc-def-01");
-    assert.equal(req.headers["tracestate"], undefined);
-    assert.equal(req.headers["baggage"], undefined);
+    expect(req.headers["traceparent"]).toBe("00-abc-def-01");
+    expect(req.headers["tracestate"]).toBe(undefined);
+    expect(req.headers["baggage"]).toBe(undefined);
   });
 });

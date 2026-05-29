@@ -1,5 +1,4 @@
-import { describe, it, afterEach } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, afterEach, expect } from "vitest";
 import { restoreStdoutGuard, isStdoutGuardInstalled } from "./stdoutGuard.js";
 import { startStdio } from "./startStdio.js";
 import type { MCPTool } from "@mcp-auto-expose/core";
@@ -46,7 +45,7 @@ describe("startStdio", () => {
       { name: "test", version: "0.0.0", tools: sampleTools, onToolCall: noop },
       { server, transport },
     );
-    assert.equal(isStdoutGuardInstalled(), true, "guard should be installed");
+    expect(isStdoutGuardInstalled()).toBe(true);
   });
 
   it("skips stdout guard when installGuard is false", async () => {
@@ -56,7 +55,7 @@ describe("startStdio", () => {
       { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false, onToolCall: noop },
       { server, transport },
     );
-    assert.equal(isStdoutGuardInstalled(), false, "guard should NOT be installed");
+    expect(isStdoutGuardInstalled()).toBe(false);
   });
 
   it("close() delegates to server.close()", async () => {
@@ -70,7 +69,7 @@ describe("startStdio", () => {
       { server, transport },
     );
     await handle.close();
-    assert.equal(closeCalled, true);
+    expect(closeCalled).toBe(true);
   });
 
   it("calls server.connect with the transport", async () => {
@@ -87,18 +86,18 @@ describe("startStdio", () => {
       { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false, onToolCall: noop },
       { server, transport },
     );
-    assert.equal(connectedTransport, transport, "server.connect must receive the transport");
+    expect(connectedTransport).toBe(transport);
   });
 
   it("does not throw at init when neither onToolCall nor apiBaseUrl provided (error deferred to per-call)", async () => {
     const server = makeServerStub();
     const transport = makeTransportStub();
-    await assert.doesNotReject(() =>
+    await expect(() =>
       startStdio(
         { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false },
         { server, transport },
       ),
-    );
+    ).not.toThrow();
   });
 
   it("onToolCall takes precedence over apiBaseUrl", async () => {
@@ -120,6 +119,6 @@ describe("startStdio", () => {
       { server, transport },
     );
 
-    assert.equal(calls.length, 0);
+    expect(calls.length).toBe(0);
   });
 });

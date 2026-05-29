@@ -1,6 +1,5 @@
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import express from "express";
@@ -140,9 +139,9 @@ describe("mountMcpExpress — routing", () => {
         },
         { "Mcp-Method": "initialize" },
       );
-      assert.equal(status, 200);
+      expect(status).toBe(200);
       const result = (body as { result?: { protocolVersion?: string } }).result;
-      assert.ok(result?.protocolVersion, "expected protocolVersion in result");
+      expect(result?.protocolVersion, "expected protocolVersion in result").toBeTruthy();
     });
   });
 
@@ -155,10 +154,10 @@ describe("mountMcpExpress — routing", () => {
         { jsonrpc: "2.0", id: 2, method: "tools/list" },
         { "Mcp-Method": "tools/list" },
       );
-      assert.equal(status, 200);
+      expect(status).toBe(200);
       const result = (body as { result?: { tools?: Array<{ name: string }> } }).result;
       const names = (result?.tools ?? []).map((t) => t.name);
-      assert.ok(names.includes("get_item"), `expected get_item in ${JSON.stringify(names)}`);
+      expect(names.includes("get_item"), `expected get_item in ${JSON.stringify(names)}`).toBeTruthy();
     });
   });
 
@@ -170,10 +169,10 @@ describe("mountMcpExpress — routing", () => {
         { jsonrpc: "2.0", id: 3, method: "tools/list" },
         { "Mcp-Method": "tools/call" },
       );
-      assert.equal(status, 400);
+      expect(status).toBe(400);
       const parsedBody = body as { error?: { code: number; message: string } };
-      assert.equal(parsedBody.error?.code, -32001);
-      assert.equal(parsedBody.error?.message, "HeaderMismatch");
+      expect(parsedBody.error?.code).toBe(-32001);
+      expect(parsedBody.error?.message).toBe("HeaderMismatch");
     });
   });
 
@@ -185,7 +184,7 @@ describe("mountMcpExpress — routing", () => {
         { jsonrpc: "2.0", id: 4, method: "tools/list" },
         { "Mcp-Method": "tools/list", Origin: "https://evil.example" },
       );
-      assert.equal(status, 403);
+      expect(status).toBe(403);
     });
   });
 });
@@ -210,9 +209,9 @@ describe("mountMcpExpress — auth propagation", () => {
         { "Mcp-Method": "tools/call", "Mcp-Name": "get_item" },
       );
       const lastCall = opts.calls[opts.calls.length - 1];
-      assert.ok(lastCall, "onToolCall should have been invoked");
-      const ctx = lastCall.ctx as { auth?: { sub: string } };
-      assert.deepEqual(ctx.auth, { sub: "u1" });
+      expect(lastCall, "onToolCall should have been invoked").toBeTruthy();
+      const ctx = lastCall!.ctx as { auth?: { sub: string } };
+      expect(ctx.auth).toEqual({ sub: "u1" });
     });
   });
 });
@@ -233,10 +232,10 @@ describe("mountMcpExpress — Mcp-Param header injection", () => {
         { "Mcp-Method": "tools/call", "Mcp-Name": "get_item", "Mcp-Param-TenantId": "t42" },
       );
       const lastCall = opts.calls[opts.calls.length - 1];
-      assert.ok(lastCall);
-      const ctx = lastCall.ctx as { headerParams: Record<string, string> };
-      assert.equal(ctx.headerParams["tenant_id"], "t42");
-      assert.equal((lastCall.args as Record<string, unknown>)["tenant_id"], "t42");
+      expect(lastCall).toBeTruthy();
+      const ctx = lastCall!.ctx as { headerParams: Record<string, string> };
+      expect(ctx.headerParams["tenant_id"]).toBe("t42");
+      expect((lastCall!.args as Record<string, unknown>)["tenant_id"]).toBe("t42");
     });
   });
 });
@@ -253,7 +252,7 @@ describe("mountMcpExpress — GET SSE endpoint", () => {
           headers: { Accept: "text/event-stream" },
           signal: ctrl.signal,
         });
-        assert.ok(res.status < 400, `expected <400 but got ${res.status}`);
+        expect(res.status < 400, `expected <400 but got ${res.status}`).toBeTruthy();
         res.body?.cancel();
       } catch (err: unknown) {
         if ((err as { name?: string }).name !== "AbortError") throw err;

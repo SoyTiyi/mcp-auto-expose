@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import type { RouteOptions } from "fastify";
 import { adaptRouteOptions } from "./adaptRouteOptions.js";
 
@@ -15,34 +14,34 @@ function makeRouteOptions(overrides: Partial<RouteOptions> = {}): RouteOptions {
 describe("adaptRouteOptions", () => {
   it("returns 1 descriptor for a single method string", () => {
     const result = adaptRouteOptions(makeRouteOptions({ method: "GET", url: "/api/users" }));
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.method, "GET");
-    assert.equal(result[0]?.url, "/api/users");
-    assert.equal(result[0]?.framework, "fastify");
+    expect(result.length).toBe(1);
+    expect(result[0]?.method).toBe("GET");
+    expect(result[0]?.url).toBe("/api/users");
+    expect(result[0]?.framework).toBe("fastify");
   });
 
   it("returns 2 descriptors for an array of methods", () => {
     const result = adaptRouteOptions(
       makeRouteOptions({ method: ["GET", "POST"], url: "/api/items" }),
     );
-    assert.equal(result.length, 2);
+    expect(result.length).toBe(2);
     const methods = result.map((d) => d.method);
-    assert.ok(methods.includes("GET"));
-    assert.ok(methods.includes("POST"));
-    assert.ok(result.every((d) => d.url === "/api/items"));
-    assert.ok(result.every((d) => d.framework === "fastify"));
+    expect(methods.includes("GET")).toBeTruthy();
+    expect(methods.includes("POST")).toBeTruthy();
+    expect(result.every((d) => d.url === "/api/items")).toBeTruthy();
+    expect(result.every((d) => d.framework === "fastify")).toBeTruthy();
   });
 
   it("returns empty array when schema.hide === true", () => {
     const result = adaptRouteOptions(
       makeRouteOptions({ schema: { hide: true } as unknown as RouteOptions["schema"] }),
     );
-    assert.deepEqual(result, []);
+    expect(result).toEqual([]);
   });
 
   it("returns empty array when config.mcpExpose === false", () => {
     const result = adaptRouteOptions(makeRouteOptions({ config: { mcpExpose: false } }));
-    assert.deepEqual(result, []);
+    expect(result).toEqual([]);
   });
 
   it("returns empty array when strictSchema: true and route has no body/querystring/params", () => {
@@ -52,7 +51,7 @@ describe("adaptRouteOptions", () => {
       }),
       { strictSchema: true },
     );
-    assert.deepEqual(result, []);
+    expect(result).toEqual([]);
   });
 
   it("returns descriptor when strictSchema: true and route has body schema", () => {
@@ -62,14 +61,14 @@ describe("adaptRouteOptions", () => {
       }),
       { strictSchema: true },
     );
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.method, "GET");
+    expect(result.length).toBe(1);
+    expect(result[0]?.method).toBe("GET");
   });
 
   it("returns descriptor (schema-less tools allowed) when strictSchema: false (default)", () => {
     const result = adaptRouteOptions(makeRouteOptions({ schema: undefined }));
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.schema, undefined);
+    expect(result.length).toBe(1);
+    expect(result[0]?.schema).toBe(undefined);
   });
 
   it("copies schema fields correctly into RouteDescriptor", () => {
@@ -86,37 +85,37 @@ describe("adaptRouteOptions", () => {
         } as unknown as RouteOptions["schema"],
       }),
     );
-    assert.equal(result.length, 1);
+    expect(result.length).toBe(1);
     const schema = result[0]?.schema;
-    assert.ok(schema, "schema should be present");
-    assert.deepEqual(schema.body, bodySchema);
-    assert.deepEqual(schema.params, paramsSchema);
-    assert.equal(schema.description, "Get a user by ID");
-    assert.deepEqual(schema.tags, ["users"]);
+    expect(schema, "schema should be present").toBeTruthy();
+    expect(schema!.body).toEqual(bodySchema);
+    expect(schema!.params).toEqual(paramsSchema);
+    expect(schema!.description).toBe("Get a user by ID");
+    expect(schema!.tags).toEqual(["users"]);
   });
 
   it("filters out unsupported methods like PROPFIND", () => {
     const result = adaptRouteOptions(
       makeRouteOptions({ method: ["GET", "PROPFIND"] as RouteOptions["method"] }),
     );
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.method, "GET");
+    expect(result.length).toBe(1);
+    expect(result[0]?.method).toBe("GET");
   });
 
   it("OPTIONS method is supported", () => {
     const result = adaptRouteOptions(
       makeRouteOptions({ method: "OPTIONS" as RouteOptions["method"], url: "/api/users" }),
     );
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.method, "OPTIONS");
-    assert.equal(result[0]?.url, "/api/users");
+    expect(result.length).toBe(1);
+    expect(result[0]?.method).toBe("OPTIONS");
+    expect(result[0]?.url).toBe("/api/users");
   });
 
   it("HEAD method is excluded by default", () => {
     const result = adaptRouteOptions(
       makeRouteOptions({ method: "HEAD" as RouteOptions["method"], url: "/api/users" }),
     );
-    assert.deepEqual(result, []);
+    expect(result).toEqual([]);
   });
 
   it("HEAD method is included when includeHead:true", () => {
@@ -124,9 +123,9 @@ describe("adaptRouteOptions", () => {
       makeRouteOptions({ method: "HEAD" as RouteOptions["method"], url: "/api/users" }),
       { includeHead: true },
     );
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.method, "HEAD");
-    assert.equal(result[0]?.url, "/api/users");
-    assert.equal(result[0]?.framework, "fastify");
+    expect(result.length).toBe(1);
+    expect(result[0]?.method).toBe("HEAD");
+    expect(result[0]?.url).toBe("/api/users");
+    expect(result[0]?.framework).toBe("fastify");
   });
 });

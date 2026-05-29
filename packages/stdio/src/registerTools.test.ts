@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import type { MCPTool } from "@mcp-auto-expose/core";
 import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
 import { registerTools } from "./registerTools.js";
@@ -48,34 +47,34 @@ describe("registerTools", () => {
   it("registers exactly 2 request handlers (list + call) regardless of tool count", () => {
     const server = makeServerStub();
     registerTools({ server: server as never, tools: sampleTools, onToolCall: noop });
-    assert.equal(server.server.handlers.length, 2, "must register ListTools and CallTool handlers");
+    expect(server.server.handlers.length).toBe(2);
   });
 
   it("tools/list handler returns all tools with correct name and description", async () => {
     const server = makeServerStub();
     registerTools({ server: server as never, tools: sampleTools, onToolCall: noop });
     const listHandler = server.server.handlers[0]?.handler;
-    assert.ok(listHandler, "ListTools handler must be registered");
-    const result = await listHandler({});
-    assert.ok(typeof result === "object" && result !== null);
+    expect(listHandler, "ListTools handler must be registered").toBeTruthy();
+    const result = await listHandler!({});
+    expect(typeof result === "object" && result !== null).toBeTruthy();
     const r = result as { tools: { name: string; description: string; inputSchema: unknown }[] };
-    assert.equal(r.tools.length, 2);
-    assert.equal(r.tools[0]?.name, "list_users");
-    assert.equal(r.tools[0]?.description, "List all users");
-    assert.equal(r.tools[1]?.name, "create_users");
+    expect(r.tools.length).toBe(2);
+    expect(r.tools[0]?.name).toBe("list_users");
+    expect(r.tools[0]?.description).toBe("List all users");
+    expect(r.tools[1]?.name).toBe("create_users");
   });
 
   it("tools/list handler returns correct inputSchema for each tool", async () => {
     const server = makeServerStub();
     registerTools({ server: server as never, tools: sampleTools, onToolCall: noop });
     const listHandler = server.server.handlers[0]?.handler;
-    assert.ok(listHandler);
-    const result = (await listHandler({})) as {
+    expect(listHandler).toBeTruthy();
+    const result = (await listHandler!({})) as {
       tools: { inputSchema: Record<string, unknown> }[];
     };
     const schema = result.tools[1]?.inputSchema;
-    assert.ok(schema, "inputSchema must be present");
-    assert.deepEqual((schema as Record<string, unknown>)["required"], ["name", "email"]);
+    expect(schema, "inputSchema must be present").toBeTruthy();
+    expect((schema as Record<string, unknown>)["required"]).toEqual(["name", "email"]);
   });
 
   it("tools/call handler invokes onToolCall and returns its result", async () => {
@@ -87,22 +86,22 @@ describe("registerTools", () => {
       onToolCall: async () => customResult,
     });
     const callHandler = server.server.handlers[1]?.handler;
-    assert.ok(callHandler);
-    const result = await callHandler({ params: { name: "list_users", arguments: {} } });
-    assert.deepEqual(result, customResult);
+    expect(callHandler).toBeTruthy();
+    const result = await callHandler!({ params: { name: "list_users", arguments: {} } });
+    expect(result).toEqual(customResult);
   });
 
   it("tools/call handler returns error content for unknown tool", async () => {
     const server = makeServerStub();
     registerTools({ server: server as never, tools: sampleTools, onToolCall: noop });
     const callHandler = server.server.handlers[1]?.handler;
-    assert.ok(callHandler);
-    const result = (await callHandler({ params: { name: "nonexistent_tool", arguments: {} } })) as {
+    expect(callHandler).toBeTruthy();
+    const result = (await callHandler!({ params: { name: "nonexistent_tool", arguments: {} } })) as {
       content: { type: string; text: string }[];
       isError: boolean;
     };
-    assert.equal(result.isError, true);
-    assert.ok(result.content[0]?.text.includes("nonexistent_tool"));
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text.includes("nonexistent_tool")).toBeTruthy();
   });
 
   it("onToolCall receives the tool object and args", async () => {
@@ -117,18 +116,18 @@ describe("registerTools", () => {
       },
     });
     const callHandler = server.server.handlers[1]?.handler;
-    assert.ok(callHandler);
-    await callHandler({ params: { name: "create_users", arguments: { name: "Ana" } } });
-    assert.ok(received, "onToolCall must have been called");
-    assert.equal(received.tool.name, "create_users");
-    assert.deepEqual(received.args, { name: "Ana" });
+    expect(callHandler).toBeTruthy();
+    await callHandler!({ params: { name: "create_users", arguments: { name: "Ana" } } });
+    expect(received, "onToolCall must have been called").toBeTruthy();
+    expect(received!.tool.name).toBe("create_users");
+    expect(received!.args).toEqual({ name: "Ana" });
   });
 
   it("registers handlers with empty tools list without throwing", () => {
     const server = makeServerStub();
-    assert.doesNotThrow(() =>
+    expect(() =>
       registerTools({ server: server as never, tools: [], onToolCall: noop }),
-    );
-    assert.equal(server.server.handlers.length, 2);
+    ).not.toThrow();
+    expect(server.server.handlers.length).toBe(2);
   });
 });

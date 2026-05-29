@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { MCP_EXPOSE_SYMBOL } from "./mcpExpose.js";
 import { walkRoutes } from "./walkRoutes.js";
 
@@ -44,11 +43,11 @@ describe("walkRoutes — test 1: simple GET /api/users", () => {
   it("emits 1 descriptor with method GET and url /api/users, schema undefined", () => {
     const app = mockApp([routeLayer("get", "/api/users")]);
     const result = walkRoutes(app, { strictSchema: false });
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.method, "GET");
-    assert.equal(result[0]?.url, "/api/users");
-    assert.equal(result[0]?.schema, undefined);
-    assert.equal(result[0]?.framework, "express");
+    expect(result.length).toBe(1);
+    expect(result[0]?.method).toBe("GET");
+    expect(result[0]?.url).toBe("/api/users");
+    expect(result[0]?.schema).toBe(undefined);
+    expect(result[0]?.framework).toBe("express");
   });
 });
 
@@ -56,9 +55,9 @@ describe("walkRoutes — test 2: Express 5 sub-router", () => {
   it("routerLayerV5('/api', [routeLayer('get', '/users')]) → url /api/users", () => {
     const app = mockApp([routerLayerV5("/api", [routeLayer("get", "/users")])]);
     const result = walkRoutes(app, { strictSchema: false });
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.url, "/api/users");
-    assert.equal(result[0]?.method, "GET");
+    expect(result.length).toBe(1);
+    expect(result[0]?.url).toBe("/api/users");
+    expect(result[0]?.method).toBe("GET");
   });
 });
 
@@ -68,8 +67,8 @@ describe("walkRoutes — test 3: Express 4 sub-router with regexp", () => {
     const regexpSource = String.raw`^\/api\/?(?=\/|$)`;
     const app = mockApp([routerLayerV4(regexpSource, false, [routeLayer("get", "/users")])]);
     const result = walkRoutes(app, { strictSchema: false });
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.url, "/api/users");
+    expect(result.length).toBe(1);
+    expect(result[0]?.url).toBe("/api/users");
   });
 });
 
@@ -77,8 +76,8 @@ describe("walkRoutes — test 4: _all filtered", () => {
   it("methods: { get: true, _all: true } → only GET emitted", () => {
     const app = mockApp([routeLayer(["get", "_all"], "/users")]);
     const result = walkRoutes(app, { strictSchema: false });
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.method, "GET");
+    expect(result.length).toBe(1);
+    expect(result[0]?.method).toBe("GET");
   });
 });
 
@@ -86,7 +85,7 @@ describe("walkRoutes — test 5: unknown method", () => {
   it("methods: { propfind: true } → 0 descriptors emitted", () => {
     const app = mockApp([routeLayer("propfind", "/users")]);
     const result = walkRoutes(app, { strictSchema: false });
-    assert.equal(result.length, 0);
+    expect(result.length).toBe(0);
   });
 });
 
@@ -94,7 +93,7 @@ describe("walkRoutes — test 6: duplicate route", () => {
   it("two GET /api/users layers → 1 descriptor in output", () => {
     const app = mockApp([routeLayer("get", "/api/users"), routeLayer("get", "/api/users")]);
     const result = walkRoutes(app, { strictSchema: false });
-    assert.equal(result.length, 1);
+    expect(result.length).toBe(1);
   });
 });
 
@@ -104,8 +103,8 @@ describe("walkRoutes — test 7: extractSchema one tagged handler", () => {
     const handler = tagged(schema);
     const app = mockApp([routeLayer("get", "/users", [handler])]);
     const result = walkRoutes(app, { strictSchema: false });
-    assert.equal(result.length, 1);
-    assert.deepEqual(result[0]?.schema, schema);
+    expect(result.length).toBe(1);
+    expect(result[0]?.schema).toEqual(schema);
   });
 });
 
@@ -117,8 +116,8 @@ describe("walkRoutes — test 8: extractSchema multiple tagged handlers", () => 
     const handler2 = tagged(schema2);
     const app = mockApp([routeLayer("get", "/users", [handler1, handler2])]);
     const result = walkRoutes(app, { strictSchema: false });
-    assert.equal(result.length, 1);
-    assert.deepEqual(result[0]?.schema, schema1);
+    expect(result.length).toBe(1);
+    expect(result[0]?.schema).toEqual(schema1);
   });
 });
 
@@ -127,8 +126,8 @@ describe("walkRoutes — test 9: extractSchema none tagged", () => {
     const plainFn = () => {};
     const app = mockApp([routeLayer("get", "/users", [plainFn])]);
     const result = walkRoutes(app, { strictSchema: false });
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.schema, undefined);
+    expect(result.length).toBe(1);
+    expect(result[0]?.schema).toBe(undefined);
   });
 });
 
@@ -136,7 +135,7 @@ describe("walkRoutes — test 10: strictSchema:true + no schema", () => {
   it("strictSchema:true and route with no tagged handler → 0 descriptors", () => {
     const app = mockApp([routeLayer("get", "/users")]);
     const result = walkRoutes(app, { strictSchema: true });
-    assert.equal(result.length, 0);
+    expect(result.length).toBe(0);
   });
 });
 
@@ -144,8 +143,8 @@ describe("walkRoutes — test 11: strictSchema:false + no schema", () => {
   it("strictSchema:false and route with no tagged handler → descriptor included with schema undefined", () => {
     const app = mockApp([routeLayer("get", "/users")]);
     const result = walkRoutes(app, { strictSchema: false });
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.schema, undefined);
+    expect(result.length).toBe(1);
+    expect(result[0]?.schema).toBe(undefined);
   });
 });
 
@@ -154,7 +153,7 @@ describe("walkRoutes — test 12: hide:true in schema", () => {
     const handler = tagged({ hide: true });
     const app = mockApp([routeLayer("get", "/users", [handler])]);
     const result = walkRoutes(app, { strictSchema: false });
-    assert.equal(result.length, 0);
+    expect(result.length).toBe(0);
   });
 });
 
@@ -162,9 +161,9 @@ describe("walkRoutes — test 13: array of paths", () => {
   it("route.path = ['/a', '/b'] → 2 descriptors", () => {
     const app = mockApp([routeLayer("get", ["/a", "/b"])]);
     const result = walkRoutes(app, { strictSchema: false });
-    assert.equal(result.length, 2);
+    expect(result.length).toBe(2);
     const urls = result.map((d) => d.url).sort();
-    assert.deepEqual(urls, ["/a", "/b"]);
+    expect(urls).toEqual(["/a", "/b"]);
   });
 });
 
@@ -172,8 +171,8 @@ describe("walkRoutes — test 14: basePath prefix", () => {
   it("basePath '/prefix' + route at '/users' → url '/prefix/users'", () => {
     const app = mockApp([routeLayer("get", "/users")]);
     const result = walkRoutes(app, { strictSchema: false, basePath: "/prefix" });
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.url, "/prefix/users");
+    expect(result.length).toBe(1);
+    expect(result[0]?.url).toBe("/prefix/users");
   });
 });
 
@@ -181,7 +180,7 @@ describe("walkRoutes — test 16: HEAD route excluded by default", () => {
   it("HEAD /users with no includeHead option → 0 descriptors", () => {
     const app = mockApp([routeLayer("head", "/users")]);
     const result = walkRoutes(app, { strictSchema: false });
-    assert.equal(result.length, 0);
+    expect(result.length).toBe(0);
   });
 });
 
@@ -189,10 +188,10 @@ describe("walkRoutes — test 17: HEAD route included when includeHead:true", ()
   it("HEAD /users with includeHead:true → 1 descriptor with method HEAD", () => {
     const app = mockApp([routeLayer("head", "/users")]);
     const result = walkRoutes(app, { strictSchema: false, includeHead: true });
-    assert.equal(result.length, 1);
-    assert.equal(result[0]?.method, "HEAD");
-    assert.equal(result[0]?.url, "/users");
-    assert.equal(result[0]?.framework, "express");
+    expect(result.length).toBe(1);
+    expect(result[0]?.method).toBe("HEAD");
+    expect(result[0]?.url).toBe("/users");
+    expect(result[0]?.framework).toBe("express");
   });
 });
 
@@ -204,8 +203,8 @@ describe("walkRoutes — test 15: plain Router walk with explicit basePath (moun
     };
 
     const descriptors = walkRoutes(plainRouter, { strictSchema: false, basePath: "/api" });
-    assert.equal(descriptors.length, 1);
-    assert.equal(descriptors[0]?.url, "/api/users");
-    assert.equal(descriptors[0]?.method, "GET");
+    expect(descriptors.length).toBe(1);
+    expect(descriptors[0]?.url).toBe("/api/users");
+    expect(descriptors[0]?.method).toBe("GET");
   });
 });

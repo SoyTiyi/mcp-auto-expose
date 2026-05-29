@@ -1,5 +1,4 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import express, { type Request, type Response } from "express";
 import { z } from "zod";
 import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
@@ -37,57 +36,57 @@ describe("autoExpose", () => {
   it("tools() returns 3 MCPTools with correct sorted names", () => {
     const handle = makeApp();
     const tools = handle.tools();
-    assert.equal(tools.length, 3);
-    assert.equal(tools[0]!.name, "create_users");
-    assert.equal(tools[1]!.name, "get_users_by_id");
-    assert.equal(tools[2]!.name, "list_users");
+    expect(tools.length).toBe(3);
+    expect(tools[0]!.name).toBe("create_users");
+    expect(tools[1]!.name).toBe("get_users_by_id");
+    expect(tools[2]!.name).toBe("list_users");
   });
 
   it("get_users_by_id has correct params schema", () => {
     const handle = makeApp();
     const tools = handle.tools();
     const tool = tools.find((t) => t.name === "get_users_by_id");
-    assert.ok(tool, "tool not found");
-    const props = tool.inputSchema.properties as Record<string, { type: string }>;
-    assert.ok(props["id"], "property id not found");
-    assert.equal(props["id"]!.type, "string");
-    const required = tool.inputSchema.required as string[];
-    assert.ok(Array.isArray(required), "required is not an array");
-    assert.ok(required.includes("id"), "id not in required");
+    expect(tool, "tool not found").toBeTruthy();
+    const props = tool!.inputSchema.properties as Record<string, { type: string }>;
+    expect(props["id"], "property id not found").toBeTruthy();
+    expect(props["id"]!.type).toBe("string");
+    const required = tool!.inputSchema.required as string[];
+    expect(Array.isArray(required), "required is not an array").toBeTruthy();
+    expect(required.includes("id"), "id not in required").toBeTruthy();
   });
 
   it("create_users has name and email properties", () => {
     const handle = makeApp();
     const tools = handle.tools();
     const tool = tools.find((t) => t.name === "create_users");
-    assert.ok(tool, "tool not found");
-    const props = tool.inputSchema.properties as Record<string, unknown>;
-    assert.ok("name" in props, "name property missing");
-    assert.ok("email" in props, "email property missing");
+    expect(tool, "tool not found").toBeTruthy();
+    const props = tool!.inputSchema.properties as Record<string, unknown>;
+    expect("name" in props, "name property missing").toBeTruthy();
+    expect("email" in props, "email property missing").toBeTruthy();
   });
 
   it("list_users has correct description", () => {
     const handle = makeApp();
     const tools = handle.tools();
     const tool = tools.find((t) => t.name === "list_users");
-    assert.ok(tool, "tool not found");
-    assert.equal(tool.description, "Listar usuarios");
+    expect(tool, "tool not found").toBeTruthy();
+    expect(tool!.description).toBe("Listar usuarios");
   });
 
   it("tools() called twice returns the same object reference (memoized)", () => {
     const handle = makeApp();
     const result1 = handle.tools();
     const result2 = handle.tools();
-    assert.ok(Object.is(result1, result2), "tools() not memoized");
+    expect(Object.is(result1, result2), "tools() not memoized").toBeTruthy();
   });
 
   it("refresh() returns a new array but with the same tools", () => {
     const handle = makeApp();
     const result1 = handle.tools();
     const result2 = handle.refresh();
-    assert.ok(!Object.is(result1, result2), "refresh() returned same reference");
-    assert.equal(result2.length, result1.length);
-    assert.equal(result2[0]!.name, result1[0]!.name);
+    expect(!Object.is(result1, result2), "refresh() returned same reference").toBeTruthy();
+    expect(result2.length).toBe(result1.length);
+    expect(result2[0]!.name).toBe(result1[0]!.name);
   });
 
   it("eager: true — walk happens at autoExpose() call time, not including later routes", () => {
@@ -113,18 +112,18 @@ describe("autoExpose", () => {
 
     const tools = handle.tools();
     const names = tools.map((t) => t.name);
-    assert.ok(names.includes("list_users"), "list_users should be present");
-    assert.ok(
+    expect(names.includes("list_users"), "list_users should be present").toBeTruthy();
+    expect(
       !names.includes("list_posts"),
       "list_posts should NOT be present (added after eager walk)",
-    );
+    ).toBeTruthy();
   });
 
   it("INTERNAL_SOURCE.framework === 'express' on every tool", () => {
     const handle = makeApp();
     const tools = handle.tools();
     for (const tool of tools) {
-      assert.equal(tool[INTERNAL_SOURCE].framework, "express");
+      expect(tool[INTERNAL_SOURCE].framework).toBe("express");
     }
   });
 
@@ -141,9 +140,9 @@ describe("autoExpose", () => {
     mount(handle, "/api", router); // explicit instead of monkey-patch
 
     const tools = handle.tools();
-    assert.equal(tools.length, 1);
-    assert.equal(tools[0]![INTERNAL_SOURCE].url, "/api/users");
-    assert.equal(tools[0]!.name, "list_users");
+    expect(tools.length).toBe(1);
+    expect(tools[0]![INTERNAL_SOURCE].url).toBe("/api/users");
+    expect(tools[0]!.name).toBe("list_users");
   });
 
   it("a route with mcpExpose({ hide: true }) is NOT in tools()", () => {
@@ -163,8 +162,8 @@ describe("autoExpose", () => {
 
     const tools = handle.tools();
     const names = tools.map((t) => t.name);
-    assert.ok(!names.includes("list_admin_secret"), "hidden route should not appear");
-    assert.ok(names.includes("list_users"), "visible route should appear");
+    expect(!names.includes("list_admin_secret"), "hidden route should not appear").toBeTruthy();
+    expect(names.includes("list_users"), "visible route should appear").toBeTruthy();
   });
 
   it("strictSchema: true — route missing mcpExpose is not in tools()", () => {
@@ -183,7 +182,7 @@ describe("autoExpose", () => {
 
     const tools = handle.tools();
     const names = tools.map((t) => t.name);
-    assert.ok(!names.includes("list_bare"), "bare route without mcpExpose should not appear");
-    assert.ok(names.includes("list_users"), "route with mcpExpose should appear");
+    expect(!names.includes("list_bare"), "bare route without mcpExpose should not appear").toBeTruthy();
+    expect(names.includes("list_users"), "route with mcpExpose should appear").toBeTruthy();
   });
 });
