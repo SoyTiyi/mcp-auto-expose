@@ -34,11 +34,11 @@ export async function startStdio(
   _deps?: Deps,
 ): Promise<StartStdioHandle> {
   // Build a base HTTP caller if configured (may be undefined)
-  const baseHttpCaller = options.onToolCall ?? (
-    options.apiBaseUrl
+  const baseHttpCaller =
+    options.onToolCall ??
+    (options.apiBaseUrl
       ? makeHttpCaller({ baseUrl: options.apiBaseUrl, ...options.apiCallerOptions })
-      : undefined
-  );
+      : undefined);
 
   const resolvedOnToolCall: OnToolCall = async (tool, args, ctx?) => {
     // `!` needed: TS widens required symbol-keyed properties to `T | undefined` (TS#42192)
@@ -50,7 +50,12 @@ export async function startStdio(
       return baseHttpCaller(tool, args, ctx);
     }
     return {
-      content: [{ type: "text", text: `[mcp-auto-expose/stdio] Tool "${tool.name}" has no executor. Provide apiBaseUrl or onToolCall, or use defineTool() to add an execute handler.` }],
+      content: [
+        {
+          type: "text",
+          text: `[mcp-auto-expose/stdio] Tool "${tool.name}" has no executor. Provide apiBaseUrl or onToolCall, or use defineTool() to add an execute handler.`,
+        },
+      ],
       isError: true,
     };
   };

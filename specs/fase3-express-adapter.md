@@ -112,9 +112,7 @@ app.use(express.json());
 
 const router = express.Router();
 
-router.get("/users", mcpExpose({ description: "List users" }), async (_req, res) =>
-  res.json([]),
-);
+router.get("/users", mcpExpose({ description: "List users" }), async (_req, res) => res.json([]));
 
 router.get(
   "/users/:id",
@@ -235,11 +233,11 @@ export function specToRouteSchema(spec: McpExposeSpec): RouteSchema {
 
 **Rationale for conversion options:**
 
-| Option         | Value           | Why                                                                                                                      |
-| -------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Option         | Value           | Why                                                                                                                       |
+| -------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `target`       | `"jsonSchema7"` | MCP clients expect Draft 7; Draft 2019-09 includes `unevaluatedProperties` and other constructs not universally supported |
 | `$refStrategy` | `"none"`        | `core/flattenSchema.ts:30-40` drops properties with `$ref`; `"none"` inlines everything eliminating data loss             |
-| `name`         | not passed      | Triggers `$ref/#/definitions/<name>` wrapper that `flattenSchema` would drop entirely                                    |
+| `name`         | not passed      | Triggers `$ref/#/definitions/<name>` wrapper that `flattenSchema` would drop entirely                                     |
 
 **Edge case behavior:**
 
@@ -511,33 +509,33 @@ export function warn(code: string, ctx: Record<string, unknown>): void {
 
 **Warning catalog:**
 
-| Code                     | Trigger                                               | Emitted context           |
-| ------------------------ | ----------------------------------------------------- | ------------------------- |
-| `missing-schema-strict`  | `strictSchema:true` and route without `mcpExpose` tag | `{ verb, url }`           |
+| Code                     | Trigger                                                 | Emitted context           |
+| ------------------------ | ------------------------------------------------------- | ------------------------- |
+| `missing-schema-strict`  | `strictSchema:true` and route without `mcpExpose` tag   | `{ verb, url }`           |
 | `regex-parse-failed`     | Express 4: mount regex does not match canonical pattern | `{ source, parentMount }` |
-| `unknown-method`         | Verb outside `HTTPMethod` union (e.g., `PROPFIND`)    | `{ verb, url }`           |
-| `multiple-mcpExpose`     | More than one tagged middleware on the same route     | `{ count, hint }`         |
-| `duplicate`              | Same `METHOD url` produced twice during walk          | `{ verb, url }`           |
-| `malformed-router-layer` | `layer.name === "router"` without `handle.stack`      | `{ mountPath }`           |
-| `empty-router`           | Empty root stack (app with no routes)                 | `{}`                      |
-| `zod-convert-failed`     | `zodToJsonSchema` throws an exception                 | `{ message }`             |
-| `schema-has-ref`         | `zodToJsonSchema` output contains `$ref`              | `{ hint }`                |
+| `unknown-method`         | Verb outside `HTTPMethod` union (e.g., `PROPFIND`)      | `{ verb, url }`           |
+| `multiple-mcpExpose`     | More than one tagged middleware on the same route       | `{ count, hint }`         |
+| `duplicate`              | Same `METHOD url` produced twice during walk            | `{ verb, url }`           |
+| `malformed-router-layer` | `layer.name === "router"` without `handle.stack`        | `{ mountPath }`           |
+| `empty-router`           | Empty root stack (app with no routes)                   | `{}`                      |
+| `zod-convert-failed`     | `zodToJsonSchema` throws an exception                   | `{ message }`             |
+| `schema-has-ref`         | `zodToJsonSchema` output contains `$ref`                | `{ hint }`                |
 
 All warnings have the unique prefix `[mcp-auto-expose:express]` for fast grep in production.
 
 ### 3.7. Express 4 vs 5 compatibility matrix
 
-| Feature                  | Express 4                                   | Express 5                             | Adapter strategy                                        |
-| ------------------------ | ------------------------------------------- | ------------------------------------- | ------------------------------------------------------- |
-| Router access            | `app._router` (undefined until first use)   | `app.router` public lazy getter       | `app.router` → `lazyrouter?.()` → `app._router` → `[]` |
-| Lazy router init         | `app.lazyrouter()` (semi-public)            | Not needed (`app.router` activates it)| Call `lazyrouter` only if `app.router` is absent        |
-| Mount path in sub-router | only `layer.regexp`                         | `layer.path` populated                | Prefer `layer.path`; fallback canonical regex-parsing   |
-| HEAD auto-generation     | No                                          | No                                    | Emit HEAD only if explicitly registered                 |
-| Wildcard                 | `'/users/*'` (unnamed)                      | `'/users/*splat'` (name required)     | Passthrough verbatim                                    |
-| Optional segments        | `:id?`                                      | `'{/:id}'` brace syntax               | Passthrough verbatim                                    |
-| `app.all(...)`           | `methods._all === true` + verbs             | Same                                  | Filter `_all` in `methodsOf`                            |
-| Array of paths           | `app.get(['/a', '/b'], ...)`                | Same                                  | `Array.isArray(layer.route.path)`                       |
-| Native schema            | None                                        | None                                  | `mcpExpose` injected by user                            |
+| Feature                  | Express 4                                 | Express 5                              | Adapter strategy                                       |
+| ------------------------ | ----------------------------------------- | -------------------------------------- | ------------------------------------------------------ |
+| Router access            | `app._router` (undefined until first use) | `app.router` public lazy getter        | `app.router` → `lazyrouter?.()` → `app._router` → `[]` |
+| Lazy router init         | `app.lazyrouter()` (semi-public)          | Not needed (`app.router` activates it) | Call `lazyrouter` only if `app.router` is absent       |
+| Mount path in sub-router | only `layer.regexp`                       | `layer.path` populated                 | Prefer `layer.path`; fallback canonical regex-parsing  |
+| HEAD auto-generation     | No                                        | No                                     | Emit HEAD only if explicitly registered                |
+| Wildcard                 | `'/users/*'` (unnamed)                    | `'/users/*splat'` (name required)      | Passthrough verbatim                                   |
+| Optional segments        | `:id?`                                    | `'{/:id}'` brace syntax                | Passthrough verbatim                                   |
+| `app.all(...)`           | `methods._all === true` + verbs           | Same                                   | Filter `_all` in `methodsOf`                           |
+| Array of paths           | `app.get(['/a', '/b'], ...)`              | Same                                   | `Array.isArray(layer.route.path)`                      |
+| Native schema            | None                                      | None                                   | `mcpExpose` injected by user                           |
 
 `peerDependencies: { "express": "^4 || ^5" }`. The test suite validates with Express 5 in devDependencies. Express 4 fallback paths are verified with mocked stacks (see §6, Task 4).
 

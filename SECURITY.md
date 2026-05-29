@@ -2,9 +2,9 @@
 
 ## Supported Versions
 
-| Version | Support    |
-| ------- | ---------- |
-| 0.1.x   | ✅ Active  |
+| Version | Support   |
+| ------- | --------- |
+| 0.1.x   | ✅ Active |
 
 ## Reporting a Vulnerability
 
@@ -22,9 +22,9 @@ Include:
 
 ## Process
 
-| Stage               | Timeline                    |
-| ------------------- | --------------------------- |
-| Acknowledgement     | 48 hours                    |
-| Assessment          | 5 business days             |
-| Fix and release     | ≤90 days                    |
-| Public disclosure   | Coordinated after the fix   |
+| Stage             | Timeline                  |
+| ----------------- | ------------------------- |
+| Acknowledgement   | 48 hours                  |
+| Assessment        | 5 business days           |
+| Fix and release   | ≤90 days                  |
+| Public disclosure | Coordinated after the fix |

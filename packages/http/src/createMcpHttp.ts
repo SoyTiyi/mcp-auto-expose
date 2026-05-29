@@ -154,7 +154,12 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
     if (options.onToolCall) return options.onToolCall(tool, args, ctx);
     if (_httpCaller) return _httpCaller(tool, args, ctx);
     return {
-      content: [{ type: "text", text: `[mcp-auto-expose/http] Tool "${tool.name}" has no executor. Provide apiBaseUrl or onToolCall, or use defineTool() to add an execute handler.` }],
+      content: [
+        {
+          type: "text",
+          text: `[mcp-auto-expose/http] Tool "${tool.name}" has no executor. Provide apiBaseUrl or onToolCall, or use defineTool() to add an execute handler.`,
+        },
+      ],
       isError: true,
     };
   };

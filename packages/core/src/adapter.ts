@@ -14,8 +14,5 @@ export interface FrameworkAdapter<THost = unknown> {
   /** Idempotente: descubre las rutas expuestas por el host. */
   discover(host: THost): RouteDescriptor[] | Promise<RouteDescriptor[]>;
   /** Opcional: despacha la request directamente sin llamada HTTP. */
-  dispatch?(
-    descriptor: RouteDescriptor,
-    request: ReconstructedRequest
-  ): Promise<CallToolResult>;
+  dispatch?(descriptor: RouteDescriptor, request: ReconstructedRequest): Promise<CallToolResult>;
 }

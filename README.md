@@ -84,21 +84,21 @@ app.listen(3000, "127.0.0.1");
 
 ## Packages
 
-| Package                    | Description                                                                         |
-| -------------------------- | ----------------------------------------------------------------------------------- |
-| `@mcp-auto-expose/core`    | Auto-discovery engine: `generateToolName`, `flattenSchema`, `makeHttpCaller`        |
-| `@mcp-auto-expose/fastify` | Fastify plugin with `onRoute` hook                                                  |
-| `@mcp-auto-expose/express` | Recursive `app._router.stack` walker + `mcpExpose` / `mcpHeader` decorators         |
-| `@mcp-auto-expose/stdio`   | stdio transport with `stdoutGuard` (redirects `console.*` → stderr)                 |
-| `@mcp-auto-expose/http`    | Streamable HTTP (POST+SSE); binders for Express and Fastify                         |
+| Package                    | Description                                                                  |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| `@mcp-auto-expose/core`    | Auto-discovery engine: `generateToolName`, `flattenSchema`, `makeHttpCaller` |
+| `@mcp-auto-expose/fastify` | Fastify plugin with `onRoute` hook                                           |
+| `@mcp-auto-expose/express` | Recursive `app._router.stack` walker + `mcpExpose` / `mcpHeader` decorators  |
+| `@mcp-auto-expose/stdio`   | stdio transport with `stdoutGuard` (redirects `console.*` → stderr)          |
+| `@mcp-auto-expose/http`    | Streamable HTTP (POST+SSE); binders for Express and Fastify                  |
 
 ---
 
 ## Status
 
-| Feature                                      | Status                                     |
-| -------------------------------------------- | ------------------------------------------ |
-| MCP Protocol                                 | `2025-11-25`                               |
+| Feature                                      | Status                                    |
+| -------------------------------------------- | ----------------------------------------- |
+| MCP Protocol                                 | `2025-11-25`                              |
 | SEP-2243 required headers                    | Implemented (default on)                  |
 | SEP-2549 cache hints (`ttlMs`, `cacheScope`) | Implemented (opt-in via `toolsListCache`) |
 | SEP-414 W3C Trace Context → backend          | Implemented                               |

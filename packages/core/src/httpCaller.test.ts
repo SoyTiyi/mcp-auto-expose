@@ -6,7 +6,11 @@ import type { MCPTool } from "./types.js";
 import { INTERNAL_SOURCE } from "./internal.js";
 import type { InternalSource } from "./internal.js";
 
-function makeTool(overrides: Partial<Omit<MCPTool, typeof INTERNAL_SOURCE>> & { source?: Partial<InternalSource> } = {}): MCPTool {
+function makeTool(
+  overrides: Partial<Omit<MCPTool, typeof INTERNAL_SOURCE>> & {
+    source?: Partial<InternalSource>;
+  } = {},
+): MCPTool {
   const { source, ...rest } = overrides;
   return {
     name: "test_tool",

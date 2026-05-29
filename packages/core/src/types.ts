@@ -37,9 +37,7 @@ export interface RouteDescriptor {
 // emits it correctly in declaration (.d.ts) files for cross-package use.
 /** @internal */
 class _InternalSourceKey {
-  static readonly INTERNAL_SOURCE: unique symbol = Symbol.for(
-    "mcp-auto-expose/source",
-  ) as never;
+  static readonly INTERNAL_SOURCE: unique symbol = Symbol.for("mcp-auto-expose/source") as never;
 }
 
 export const INTERNAL_SOURCE: typeof _InternalSourceKey.INTERNAL_SOURCE =

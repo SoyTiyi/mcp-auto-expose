@@ -1,5 +1,9 @@
 // Smoke: verifies re-export from core works
-import { encodeHeaderValue, validateAndMergeHeaderParams, MCP_PARAM_PREFIX } from "./headerParams.js";
+import {
+  encodeHeaderValue,
+  validateAndMergeHeaderParams,
+  MCP_PARAM_PREFIX,
+} from "./headerParams.js";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
