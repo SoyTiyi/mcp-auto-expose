@@ -77,12 +77,12 @@ function toPascalCase(snake: string): string {
 
 export function specToRouteSchema(spec: McpExposeSpec): RouteSchema {
   return {
-    body: spec.body ? convertCached(spec.body) : undefined,
-    querystring: spec.query ? convertCached(spec.query) : undefined,
-    params: spec.params ? convertCached(spec.params) : undefined,
-    description: spec.description,
-    summary: spec.summary,
-    tags: spec.tags ? [...spec.tags] : undefined,
-    hide: spec.hide,
+    ...(spec.body && { body: convertCached(spec.body) }),
+    ...(spec.query && { querystring: convertCached(spec.query) }),
+    ...(spec.params && { params: convertCached(spec.params) }),
+    ...(spec.description !== undefined && { description: spec.description }),
+    ...(spec.summary !== undefined && { summary: spec.summary }),
+    ...(spec.tags !== undefined && { tags: [...spec.tags] }),
+    ...(spec.hide !== undefined && { hide: spec.hide }),
   };
 }

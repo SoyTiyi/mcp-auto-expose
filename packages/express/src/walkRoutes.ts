@@ -80,7 +80,7 @@ function walk(
           }
           if (schema?.hide) continue; // silent opt-out
 
-          out.push({ framework: "express", method: verb, url, schema });
+          out.push({ framework: "express", method: verb, url, ...(schema !== undefined && { schema }) });
         }
       }
     } else if (layer.name === "router" && layer.handle) {

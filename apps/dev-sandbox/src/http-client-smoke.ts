@@ -10,13 +10,17 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 
 const BASE_URL = process.env["MCP_SERVER_URL"] ?? "http://127.0.0.1:3000/mcp";
 
 const transport = new StreamableHTTPClientTransport(new URL(BASE_URL));
 const client = new Client({ name: "http-client-smoke", version: "0.0.0" });
 
-await client.connect(transport);
+// Cast: StreamableHTTPClientTransport.sessionId getter returns `string | undefined` but
+// Transport.sessionId?: string under exactOptionalPropertyTypes requires `string` when present.
+// This is a third-party SDK type mismatch; the cast to Transport is safe here.
+await client.connect(transport as Transport);
 process.stderr.write(`[mcp-client-smoke] Connected to ${BASE_URL}\n`);
 
 // List tools

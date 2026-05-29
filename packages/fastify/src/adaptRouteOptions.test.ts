@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { RouteOptions } from "fastify";
 import { adaptRouteOptions } from "./adaptRouteOptions.js";
 
-function makeRouteOptions(overrides: Partial<RouteOptions> = {}): RouteOptions {
+function makeRouteOptions(overrides: Record<string, unknown> = {}): RouteOptions {
   return {
     method: "GET",
     url: "/api/users",

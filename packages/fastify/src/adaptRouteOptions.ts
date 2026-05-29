@@ -47,13 +47,13 @@ export function adaptRouteOptions(
 
   const routeSchema: RouteSchema | undefined = schema
     ? {
-        body: schema.body,
-        querystring: schema.querystring,
-        params: schema.params,
-        description: schema.description,
-        summary: schema.summary,
-        tags: schema.tags,
-        hide: schema.hide,
+        ...(schema.body !== undefined && { body: schema.body }),
+        ...(schema.querystring !== undefined && { querystring: schema.querystring }),
+        ...(schema.params !== undefined && { params: schema.params }),
+        ...(schema.description !== undefined && { description: schema.description }),
+        ...(schema.summary !== undefined && { summary: schema.summary }),
+        ...(schema.tags !== undefined && { tags: schema.tags }),
+        ...(schema.hide !== undefined && { hide: schema.hide }),
       }
     : undefined;
 
@@ -66,7 +66,7 @@ export function adaptRouteOptions(
       framework: "fastify",
       method: method as HTTPMethod,
       url: routeOptions.url,
-      schema: routeSchema,
+      ...(routeSchema !== undefined && { schema: routeSchema }),
     });
   }
 

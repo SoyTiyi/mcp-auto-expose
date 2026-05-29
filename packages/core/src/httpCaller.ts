@@ -46,7 +46,7 @@ export function makeHttpCaller(opts: HttpCallerOptions): OnToolCall {
       response = await fetch(fullUrl, {
         method: src.method,
         headers: requestHeaders,
-        body: hasBody ? JSON.stringify(body) : undefined,
+        ...(hasBody && { body: JSON.stringify(body) }),
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
