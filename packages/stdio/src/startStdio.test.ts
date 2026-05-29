@@ -164,7 +164,7 @@ describe("startStdio — resolvedOnToolCall dispatch", () => {
     const { server, handlers } = makeCapturingServerStub();
     const transport = makeTransportStub();
     let executeCallCount = 0;
-    const execute = async (_args: unknown) => {
+    const execute = async () => {
       executeCallCount++;
       return { content: [{ type: "text" as const, text: "from-execute" }] };
     };
