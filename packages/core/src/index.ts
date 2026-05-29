@@ -21,6 +21,9 @@ export type { OnToolCall, CallToolResult, HttpCallerOptions } from "./httpCaller
 
 export type { FrameworkAdapter } from "./adapter.js";
 
+export { defineTool } from "./defineTool.js";
+export type { ToolDefinition } from "./defineTool.js";
+
 export {
   encodeHeaderValue,
   decodeHeaderValue,

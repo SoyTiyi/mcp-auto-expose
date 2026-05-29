@@ -90,16 +90,14 @@ describe("startStdio", () => {
     assert.equal(connectedTransport, transport, "server.connect must receive the transport");
   });
 
-  it("throws when neither onToolCall nor apiBaseUrl provided", async () => {
+  it("does not throw at init when neither onToolCall nor apiBaseUrl provided (error deferred to per-call)", async () => {
     const server = makeServerStub();
     const transport = makeTransportStub();
-    await assert.rejects(
-      () =>
-        startStdio(
-          { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false },
-          { server, transport },
-        ),
-      /apiBaseUrl.*onToolCall|onToolCall.*apiBaseUrl/i,
+    await assert.doesNotReject(() =>
+      startStdio(
+        { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false },
+        { server, transport },
+      ),
     );
   });
 

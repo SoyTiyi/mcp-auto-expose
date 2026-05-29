@@ -346,16 +346,14 @@ describe("createMcpHttp — SEP-2549 toolsListCache", () => {
 });
 
 describe("createMcpHttp — fail-fast and apiBaseUrl", () => {
-  it("throws when neither onToolCall nor apiBaseUrl provided", () => {
-    assert.throws(
-      () =>
-        createMcpHttp({
-          name: "test",
-          version: "0.0.0",
-          tools: [TEST_TOOL],
-          allowedOrigins: [],
-        }),
-      /apiBaseUrl.*onToolCall|onToolCall.*apiBaseUrl/i,
+  it("does not throw at init when neither onToolCall nor apiBaseUrl provided (error deferred to per-call)", () => {
+    assert.doesNotThrow(() =>
+      createMcpHttp({
+        name: "test",
+        version: "0.0.0",
+        tools: [TEST_TOOL],
+        allowedOrigins: [],
+      }),
     );
   });
 

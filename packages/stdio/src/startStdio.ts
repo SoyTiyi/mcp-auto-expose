@@ -1,7 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import type { MCPTool, HttpCallerOptions } from "@mcp-auto-expose/core";
+import type { MCPTool, HttpCallerOptions, OnToolCall } from "@mcp-auto-expose/core";
 import { makeHttpCaller } from "@mcp-auto-expose/core";
+import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
 import { installStdoutGuard } from "./stdoutGuard.js";
 import { registerTools } from "./registerTools.js";
 
@@ -32,18 +33,27 @@ export async function startStdio(
   /** For testing only — allows injecting pre-built server/transport. */
   _deps?: Deps,
 ): Promise<StartStdioHandle> {
-  const resolvedOnToolCall = (() => {
-    if (options.onToolCall) return options.onToolCall;
-    if (options.apiBaseUrl) {
-      return makeHttpCaller({
-        baseUrl: options.apiBaseUrl,
-        ...options.apiCallerOptions,
-      });
+  // Build a base HTTP caller if configured (may be undefined)
+  const baseHttpCaller = options.onToolCall ?? (
+    options.apiBaseUrl
+      ? makeHttpCaller({ baseUrl: options.apiBaseUrl, ...options.apiCallerOptions })
+      : undefined
+  );
+
+  const resolvedOnToolCall: OnToolCall = async (tool, args, ctx?) => {
+    // `!` needed: TS widens required symbol-keyed properties to `T | undefined` (TS#42192)
+    const src = tool[INTERNAL_SOURCE]!;
+    if (typeof src.execute === "function") {
+      return src.execute(args);
     }
-    throw new Error(
-      "[mcp-auto-expose/stdio] startStdio requires either 'apiBaseUrl' or 'onToolCall'.",
-    );
-  })();
+    if (baseHttpCaller) {
+      return baseHttpCaller(tool, args, ctx);
+    }
+    return {
+      content: [{ type: "text", text: `[mcp-auto-expose/stdio] Tool "${tool.name}" has no executor. Provide apiBaseUrl or onToolCall, or use defineTool() to add an execute handler.` }],
+      isError: true,
+    };
+  };
 
   if (options.installGuard !== false) installStdoutGuard();
 
