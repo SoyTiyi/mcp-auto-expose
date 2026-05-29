@@ -14,6 +14,9 @@ const BODILESS_METHODS = new Set(["GET", "DELETE", "HEAD", "OPTIONS"]);
 /**
  * Converts a snake_case key to Title-Kebab-Case for header names.
  * Example: tenant_id → Tenant-Id
+ *
+ * Related: {@link collectExpectedHeaderParams} and {@link validateAndMergeHeaderParams}
+ * in ./headerParams.ts handle the server-side parsing and validation of these headers.
  */
 export function toMcpParamHeader(key: string): string {
   const titled = key

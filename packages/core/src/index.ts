@@ -20,3 +20,12 @@ export { makeHttpCaller } from "./httpCaller.js";
 export type { OnToolCall, CallToolResult, HttpCallerOptions } from "./httpCaller.js";
 
 export type { FrameworkAdapter } from "./adapter.js";
+
+export {
+  encodeHeaderValue,
+  decodeHeaderValue,
+  collectExpectedHeaderParams,
+  validateAndMergeHeaderParams,
+  MCP_PARAM_PREFIX,
+} from "./headerParams.js";
+export type { ValidateResult, ValidateFail, ValidateOk, DecodeResult, DecodeOk, DecodeFail } from "./headerParams.js";
