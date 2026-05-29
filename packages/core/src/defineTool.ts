@@ -37,8 +37,17 @@ export function defineTool<T extends z.ZodObject<z.ZodRawShape>>(def: ToolDefini
       }) as Record<string, unknown>),
     };
     delete jsonSchema["~standard"];
-  } catch {
+  } catch (e) {
+    process.stderr.write(
+      `[mcp-auto-expose/core] defineTool("${def.name}"): z.toJSONSchema failed — ${String(e)}. Schema defaults to {}.\n`,
+    );
     jsonSchema = {};
+  }
+
+  if (JSON.stringify(jsonSchema).includes('"$ref"')) {
+    process.stderr.write(
+      `[mcp-auto-expose/core] defineTool("${def.name}"): schema contains $ref — use a flat z.object; recursive schemas become {}.\n`,
+    );
   }
 
   const inputSchema: MCPToolInputSchema = {
@@ -54,8 +63,8 @@ export function defineTool<T extends z.ZodObject<z.ZodRawShape>>(def: ToolDefini
     [INTERNAL_SOURCE]: {
       paramMap: {},
       framework: "manual",
-      url: "",
-      method: "GET",
+      url: "", // no HTTP route — tool executes in-process via execute()
+      method: "GET", // placeholder; execute() bypasses all HTTP dispatch
       execute: def.execute as (args: unknown) => Promise<ToolCallResult> | ToolCallResult,
     },
   };

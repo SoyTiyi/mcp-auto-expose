@@ -53,4 +53,34 @@ describe("defineTool", () => {
     assert.equal(tool.inputSchema.type, "object");
     assert.deepEqual(tool.inputSchema.properties, {});
   });
+
+  test("does not throw when creating tool with optional fields", () => {
+    assert.doesNotThrow(() => {
+      defineTool({
+        name: "complex",
+        description: "Complex schema",
+        inputSchema: z.object({
+          name: z.string(),
+          age: z.number().optional(),
+          tags: z.array(z.string()).optional(),
+        }),
+        execute: async () => ({ content: [{ type: "text", text: "ok" }] }),
+      });
+    });
+  });
+
+  test("execute function is callable and returns ToolCallResult", async () => {
+    const tool = defineTool({
+      name: "adder",
+      description: "Adds numbers",
+      inputSchema: z.object({ a: z.number(), b: z.number() }),
+      execute: async ({ a, b }) => ({ content: [{ type: "text", text: String(a + b) }] }),
+    });
+
+    // Simulate how startStdio/createMcpHttp calls the execute function
+    const src = tool[INTERNAL_SOURCE];
+    assert.equal(typeof src.execute, "function");
+    const result = await src.execute!({ a: 3, b: 4 });
+    assert.deepEqual(result, { content: [{ type: "text", text: "7" }] });
+  });
 });
