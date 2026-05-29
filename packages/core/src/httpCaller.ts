@@ -37,9 +37,9 @@ export function makeHttpCaller(opts: HttpCallerOptions): OnToolCall {
 
     // SEP-414: propagate W3C Trace Context to the backend
     const trace = (ctx as { traceContext?: Record<string, string> } | undefined)?.traceContext;
-    if (trace?.traceparent) requestHeaders["Traceparent"] = trace.traceparent;
-    if (trace?.tracestate) requestHeaders["Tracestate"] = trace.tracestate;
-    if (trace?.baggage) requestHeaders["Baggage"] = trace.baggage;
+    if (trace?.["traceparent"]) requestHeaders["Traceparent"] = trace["traceparent"];
+    if (trace?.["tracestate"]) requestHeaders["Tracestate"] = trace["tracestate"];
+    if (trace?.["baggage"]) requestHeaders["Baggage"] = trace["baggage"];
 
     let response: Response;
     try {

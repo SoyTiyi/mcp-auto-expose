@@ -108,7 +108,7 @@ describe("flattenSchema", () => {
     // 'user' ($ref) is skipped; 'name' is present
     expect("user" in result.properties, "'user' should be skipped").toBeFalsy();
     expect("name" in result.properties, "'name' should be present").toBeTruthy();
-    expect(result.properties.name).toEqual({ type: "string" });
+    expect(result.properties["name"]).toEqual({ type: "string" });
     // required: 'user' is skipped (since it was a $ref), 'name' is included
     expect(result.required).toEqual(["name"]);
     expect(stderrOutput.includes("$ref"), "stderr should mention $ref skip").toBeTruthy();
