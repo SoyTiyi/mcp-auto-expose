@@ -25,7 +25,7 @@ export function toMcpParamHeader(key: string): string {
 
 /**
  * Reconstructs the original REST request fragments from a flat MCP args map.
- * - Uses _source.paramMap to route each arg to params/querystring/body.
+ * - Uses [INTERNAL_SOURCE].paramMap to route each arg to params/querystring/body.
  * - Args with x-mcp-header: true are forwarded as Mcp-Param-* headers instead.
  * - URL param substitution uses encodeURIComponent to prevent path injection.
  */
@@ -33,6 +33,7 @@ export function reconstructRequest(
   tool: MCPTool,
   args: Record<string, unknown>,
 ): ReconstructedRequest {
+  // `!` needed: TS widens required symbol-keyed properties to `T | undefined` (TS#42192)
   const src = tool[INTERNAL_SOURCE]!;
   let url = src.url;
   const qs = new URLSearchParams();

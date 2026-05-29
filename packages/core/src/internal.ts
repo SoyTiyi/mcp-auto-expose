@@ -5,4 +5,4 @@
  *
  * External packages import from "@mcp-auto-expose/core/internal" to get these.
  */
-export { INTERNAL_SOURCE, type InternalSource } from "./types.js";
+export { INTERNAL_SOURCE, type InternalSource, type ToolCallResult } from "./types.js";
