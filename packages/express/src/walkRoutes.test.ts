@@ -196,36 +196,16 @@ describe("walkRoutes — test 17: HEAD route included when includeHead:true", ()
   });
 });
 
-describe("walkRoutes — test 15: mountRegistry for Express 5.1+ sub-router mount path", () => {
-  it("uses mountRegistry to recover mount path when layer.path and layer.regexp are absent", () => {
-    const mountRegistry = new WeakMap<object, string>();
+describe("walkRoutes — test 15: plain Router walk with explicit basePath (mount() pattern)", () => {
+  it("walks a plain Router (stack directly on object) with basePath prefix", () => {
+    // Simulate a plain express.Router() — has .stack directly (no .router wrapper)
+    const plainRouter = {
+      stack: [routeLayer("get", "/users")],
+    };
 
-    // Simulate a sub-router handle with no layer.path / layer.regexp (Express 5.1+)
-    function routerHandle() {}
-    (routerHandle as unknown as { stack: unknown[] }).stack = [
-      {
-        route: {
-          path: "/users",
-          methods: { get: true },
-          stack: [],
-        },
-      },
-    ];
-
-    mountRegistry.set(routerHandle, "/api");
-
-    const fakeStack = [
-      {
-        name: "router",
-        handle: routerHandle as unknown as { stack: unknown[] } & ((...a: unknown[]) => void),
-        regexp: undefined,
-        path: undefined,
-        slash: false,
-      },
-    ];
-
-    const descriptors = walkRoutes(mockApp(fakeStack), { strictSchema: false, mountRegistry });
+    const descriptors = walkRoutes(plainRouter, { strictSchema: false, basePath: "/api" });
     assert.equal(descriptors.length, 1);
     assert.equal(descriptors[0]?.url, "/api/users");
+    assert.equal(descriptors[0]?.method, "GET");
   });
 });

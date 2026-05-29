@@ -20,7 +20,7 @@
 
 import express, { Router } from "express";
 import { z } from "zod";
-import { autoExpose, mcpExpose, mcpHeader } from "@mcp-auto-expose/express";
+import { autoExpose, mcpExpose, mcpHeader, mount } from "@mcp-auto-expose/express";
 import { mountMcpExpress } from "@mcp-auto-expose/http/express";
 
 const app = express();
@@ -66,6 +66,7 @@ router.delete("/users/:id", mcpExpose({ description: "Delete a user by ID" }), (
 });
 
 app.use("/api", router);
+mount(handle, "/api", router); // explicit mount registration
 
 const tools = handle.tools();
 

@@ -20,8 +20,8 @@ export interface WalkOptions {
   strictSchema?: boolean; // default: true (applied in walk())
   includeHead?: boolean; // default: false — HEAD excluded to match Fastify behaviour
   basePath?: string; // initial mountPath — ADDITIVE prefix for all discovered URLs
-  /** Internal: supplied by autoExpose to enable Express 5.1+ mount path recovery */
-  mountRegistry?: WeakMap<object, string>;
+  /** Internal: set of sub-router handles to skip during top-level walk (walked separately via mount()) */
+  skipHandles?: Set<object>;
 }
 
 function getRootStack(app: unknown): ExpressLayer[] {
@@ -29,7 +29,9 @@ function getRootStack(app: unknown): ExpressLayer[] {
     router?: { stack: ExpressLayer[] };
     _router?: { stack: ExpressLayer[] };
     lazyrouter?: () => void;
+    stack?: ExpressLayer[]; // plain Router has stack directly
   };
+  if (Array.isArray(a.stack)) return a.stack; // plain Router (express.Router())
   if (a.router?.stack) return a.router.stack; // Express 5: lazy public getter
   if (typeof a.lazyrouter === "function") a.lazyrouter(); // Express 4: force lazy init
   if (a._router?.stack) return a._router.stack; // Express 4: after init
@@ -37,11 +39,11 @@ function getRootStack(app: unknown): ExpressLayer[] {
   return [];
 }
 
-export function walkRoutes(app: unknown, opts: WalkOptions): RouteDescriptor[] {
+export function walkRoutes(appOrRouter: unknown, opts: WalkOptions): RouteDescriptor[] {
   const out: RouteDescriptor[] = [];
   const seen = new Set<string>();
   const basePath = opts.basePath ?? "";
-  walk(getRootStack(app), basePath, out, seen, opts);
+  walk(getRootStack(appOrRouter), basePath, out, seen, opts);
   return out;
 }
 
@@ -82,14 +84,17 @@ function walk(
         }
       }
     } else if (layer.name === "router" && layer.handle) {
-      // Sub-router: descend recursively
+      // Sub-router: skip if it's registered in skipHandles (walked separately via mount())
+      if (opts.skipHandles?.has(layer.handle as object)) continue;
+
+      // Descend recursively
       const subStack = (layer.handle as { stack?: ExpressLayer[] }).stack;
       if (!subStack) {
         warn("malformed-router-layer", { mountPath });
         continue;
       }
 
-      const childMount = recoverMountPath(layer, mountPath, opts.mountRegistry);
+      const childMount = recoverMountPath(layer, mountPath);
       walk(subStack, joinPath(mountPath, childMount), out, seen, opts);
     }
     // Any other middleware (body-parser, cors, etc.) => ignore
@@ -115,28 +120,19 @@ function methodsOf(methods: Record<string, boolean>, url: string, opts: WalkOpti
     });
 }
 
-function recoverMountPath(
-  layer: ExpressLayer,
-  parentMount: string,
-  mountRegistry?: WeakMap<object, string>,
-): string {
+function recoverMountPath(layer: ExpressLayer, parentMount: string): string {
   // Express 5.0.x: layer.path is populated at construction time
   if (layer.path && typeof layer.path === "string") return layer.path;
-
-  // Express 5.1+ (router@2.x): mount registry populated by autoExpose wrapper
-  if (mountRegistry && layer.handle && typeof layer.handle === "function") {
-    const recorded = mountRegistry.get(layer.handle as object);
-    if (recorded !== undefined) return recorded;
-  }
 
   const regexp = layer.regexp;
   if (!regexp) {
     // Express 5.1+: layer has matchers[] instead of regexp; path is not accessible post-registration.
+    // Sub-routers at this level indicate the caller forgot to use mount().
     // Only warn if it's a real sub-router (not a fast-slash "/" mount)
     if (!layer.slash) {
       warn("unknown-layer-shape", {
         parentMount,
-        hint: "call autoExpose(app) before app.use(path, router) for Express 5.1+ mount path recovery",
+        hint: "call mount(handle, prefix, subApp) after app.use(prefix, subApp) for Express 5.1+",
       });
     }
     return "";
