@@ -295,7 +295,7 @@ describe("createMcpHttp — MCP roundtrip", () => {
   it("close() resolves without error", async () => {
     const opts = makeOpts();
     const handle = createMcpHttp(opts);
-    await expect(() => handle.close()).not.toThrow();
+    await handle.close(); // test fails automatically if this rejects
   });
 });
 
@@ -369,7 +369,7 @@ describe("createMcpHttp — fail-fast and apiBaseUrl", () => {
         return { content: [{ type: "text", text: "explicit" }] };
       },
     });
-    await expect(() => handle.close()).not.toThrow();
+    await handle.close(); // test fails automatically if this rejects
 
     expect(calls.length).toBe(0);
   });

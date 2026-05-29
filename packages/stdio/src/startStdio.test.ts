@@ -92,12 +92,10 @@ describe("startStdio", () => {
   it("does not throw at init when neither onToolCall nor apiBaseUrl provided (error deferred to per-call)", async () => {
     const server = makeServerStub();
     const transport = makeTransportStub();
-    await expect(() =>
-      startStdio(
-        { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false },
-        { server, transport },
-      ),
-    ).not.toThrow();
+    await startStdio(
+      { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false },
+      { server, transport },
+    ); // test fails automatically if this rejects
   });
 
   it("onToolCall takes precedence over apiBaseUrl", async () => {
