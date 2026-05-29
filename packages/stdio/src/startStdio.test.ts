@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { restoreStdoutGuard, isStdoutGuardInstalled } from "./stdoutGuard.js";
 import { startStdio } from "./startStdio.js";
 import type { MCPTool } from "@mcp-auto-expose/core";
+import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
@@ -13,7 +14,7 @@ const sampleTools: MCPTool[] = [
     name: "list_items",
     description: "List items",
     inputSchema: { type: "object", properties: {} },
-    _source: { framework: "fastify", method: "GET", url: "/api/items", paramMap: {} },
+    [INTERNAL_SOURCE]: { framework: "fastify", method: "GET", url: "/api/items", paramMap: {} },
   },
 ];
 

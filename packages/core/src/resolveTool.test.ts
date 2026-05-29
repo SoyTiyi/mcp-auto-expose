@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { RouteDescriptor } from "./types.js";
+import { INTERNAL_SOURCE } from "./internal.js";
 import { resolveTool } from "./resolveTool.js";
 
 function makeDescriptor(overrides: Partial<RouteDescriptor> = {}): RouteDescriptor {
@@ -13,7 +14,7 @@ function makeDescriptor(overrides: Partial<RouteDescriptor> = {}): RouteDescript
 }
 
 describe("resolveTool", () => {
-  it("1. with full schema — name, description from schema.description, inputSchema with params, _source correct", () => {
+  it("1. with full schema — name, description from schema.description, inputSchema with params, INTERNAL_SOURCE correct", () => {
     const descriptor = makeDescriptor({
       method: "GET",
       url: "/api/users/:id",
@@ -36,7 +37,7 @@ describe("resolveTool", () => {
       properties: { id: { type: "string" } },
       required: ["id"],
     });
-    assert.deepEqual(tool._source, {
+    assert.deepEqual(tool[INTERNAL_SOURCE]!, {
       framework: "fastify",
       method: "GET",
       url: "/api/users/:id",
@@ -112,7 +113,7 @@ describe("resolveTool", () => {
     });
   });
 
-  it("6. _source is correct — framework, method, url match descriptor", () => {
+  it("6. INTERNAL_SOURCE is correct — framework, method, url match descriptor", () => {
     const descriptor: RouteDescriptor = {
       framework: "express",
       method: "DELETE",
@@ -121,8 +122,9 @@ describe("resolveTool", () => {
 
     const tool = resolveTool(descriptor);
 
-    assert.equal(tool._source.framework, "express");
-    assert.equal(tool._source.method, "DELETE");
-    assert.equal(tool._source.url, "/api/items/:itemId");
+    const src = tool[INTERNAL_SOURCE]!;
+    assert.equal(src.framework, "express");
+    assert.equal(src.method, "DELETE");
+    assert.equal(src.url, "/api/items/:itemId");
   });
 });

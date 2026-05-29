@@ -3,19 +3,23 @@ import assert from "node:assert/strict";
 import * as http from "node:http";
 import { makeHttpCaller } from "./httpCaller.js";
 import type { MCPTool } from "./types.js";
+import { INTERNAL_SOURCE } from "./internal.js";
+import type { InternalSource } from "./internal.js";
 
-function makeTool(overrides: Partial<MCPTool> = {}): MCPTool {
+function makeTool(overrides: Partial<Omit<MCPTool, typeof INTERNAL_SOURCE>> & { source?: Partial<InternalSource> } = {}): MCPTool {
+  const { source, ...rest } = overrides;
   return {
     name: "test_tool",
     description: "test",
     inputSchema: { type: "object", properties: {} },
-    _source: {
+    [INTERNAL_SOURCE]: {
       framework: "express",
       method: "GET",
       url: "/users",
       paramMap: {},
+      ...source,
     },
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -90,7 +94,7 @@ describe("makeHttpCaller", () => {
   it("1. GET with URL params → correct URL, returns backend data", async () => {
     const caller = makeHttpCaller({ baseUrl });
     const tool = makeTool({
-      _source: {
+      source: {
         framework: "express",
         method: "GET",
         url: "/users/:id",
@@ -108,7 +112,7 @@ describe("makeHttpCaller", () => {
   it("2. POST with body → JSON sent correctly", async () => {
     const caller = makeHttpCaller({ baseUrl });
     const tool = makeTool({
-      _source: {
+      source: {
         framework: "express",
         method: "POST",
         url: "/users",
@@ -127,7 +131,7 @@ describe("makeHttpCaller", () => {
   it("3. Backend returns non-OK → isError: true", async () => {
     const caller = makeHttpCaller({ baseUrl });
     const tool = makeTool({
-      _source: {
+      source: {
         framework: "express",
         method: "GET",
         url: "/error",
@@ -152,7 +156,7 @@ describe("makeHttpCaller", () => {
     try {
       const caller = makeHttpCaller({ baseUrl: hangBaseUrl, timeoutMs: 50 });
       const tool = makeTool({
-        _source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
+        source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
       });
       const result = await caller(tool, {});
       assert.equal(result.isError, true);
@@ -172,7 +176,7 @@ describe("makeHttpCaller", () => {
           tenant_id: { type: "string", "x-mcp-header": "TenantId" },
         },
       },
-      _source: {
+      source: {
         framework: "express",
         method: "GET",
         url: "/users/:id",
@@ -191,7 +195,7 @@ describe("makeHttpCaller", () => {
       defaultHeaders: { Authorization: "Bearer token123" },
     });
     const tool = makeTool({
-      _source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
+      source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
     });
     await caller(tool, {});
     const req = lastRequest()!;
@@ -201,7 +205,7 @@ describe("makeHttpCaller", () => {
   it("7. SEP-414: traceparent/tracestate/baggage forwarded to backend when ctx.traceContext set", async () => {
     const caller = makeHttpCaller({ baseUrl });
     const tool = makeTool({
-      _source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
+      source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
     });
     const ctx = {
       traceContext: {
@@ -223,7 +227,7 @@ describe("makeHttpCaller", () => {
   it("8. SEP-414: no trace headers forwarded when ctx has no traceContext", async () => {
     const caller = makeHttpCaller({ baseUrl });
     const tool = makeTool({
-      _source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
+      source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
     });
     await caller(tool, {}, {});
     const req = lastRequest()!;
@@ -234,7 +238,7 @@ describe("makeHttpCaller", () => {
   it("9. SEP-414: only present trace headers are forwarded (partial set)", async () => {
     const caller = makeHttpCaller({ baseUrl });
     const tool = makeTool({
-      _source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
+      source: { framework: "express", method: "GET", url: "/users", paramMap: {} },
     });
     const ctx = { traceContext: { traceparent: "00-abc-def-01" } };
     await caller(tool, {}, ctx);

@@ -2,6 +2,7 @@ import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import Fastify from "fastify";
+import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
 import { mcpFastifyPlugin } from "./fastify.js";
 import type { McpHttpOptions } from "./createMcpHttp.js";
 
@@ -18,7 +19,7 @@ const TEST_TOOL = {
   name: "get_item",
   description: "Get an item by id",
   inputSchema: TOOL_SCHEMA,
-  _source: {
+  [INTERNAL_SOURCE]: {
     framework: "express" as const,
     method: "GET" as const,
     url: "/items/:id",

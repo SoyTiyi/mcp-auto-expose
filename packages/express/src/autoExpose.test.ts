@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import express, { type Request, type Response } from "express";
 import { z } from "zod";
+import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
 import { autoExpose } from "./autoExpose.js";
 import { mcpExpose } from "./mcpExpose.js";
 
@@ -116,11 +117,11 @@ describe("autoExpose", () => {
     );
   });
 
-  it("_source.framework === 'express' on every tool", () => {
+  it("INTERNAL_SOURCE.framework === 'express' on every tool", () => {
     const handle = autoExpose(makeApp(), { strictSchema: true });
     const tools = handle.tools();
     for (const tool of tools) {
-      assert.equal(tool._source.framework, "express");
+      assert.equal(tool[INTERNAL_SOURCE].framework, "express");
     }
   });
 
@@ -138,7 +139,7 @@ describe("autoExpose", () => {
     const tools = handle.tools();
     assert.equal(tools.length, 1);
     // Full path with prefix must be recovered
-    assert.equal(tools[0]!._source.url, "/api/users");
+    assert.equal(tools[0]![INTERNAL_SOURCE].url, "/api/users");
     // generateToolName("/api/users", "GET") strips "api" as a prefix segment → "list_users"
     assert.equal(tools[0]!.name, "list_users");
   });

@@ -1,4 +1,5 @@
 import type { MCPTool } from "./types.js";
+import { INTERNAL_SOURCE } from "./internal.js";
 
 export interface ReconstructedRequest {
   url: string;
@@ -32,15 +33,16 @@ export function reconstructRequest(
   tool: MCPTool,
   args: Record<string, unknown>,
 ): ReconstructedRequest {
-  let url = tool._source.url;
+  const src = tool[INTERNAL_SOURCE]!;
+  let url = src.url;
   const qs = new URLSearchParams();
   const bodyObj: Record<string, unknown> = {};
   const headers: Record<string, string> = {};
-  const isBodiless = BODILESS_METHODS.has(tool._source.method);
+  const isBodiless = BODILESS_METHODS.has(src.method);
 
   const properties = tool.inputSchema.properties as Record<string, Record<string, unknown>>;
 
-  for (const [key, origin] of Object.entries(tool._source.paramMap)) {
+  for (const [key, origin] of Object.entries(src.paramMap)) {
     if (!(key in args)) continue;
     const value = args[key];
 
@@ -60,7 +62,7 @@ export function reconstructRequest(
         url = url.replace(bracePlaceholder, encodeURIComponent(String(value)));
       } else {
         process.stderr.write(
-          `[mcp-auto-expose] unbound-param: key "${key}" has no :${key} placeholder in url "${tool._source.url}" — skipping\n`,
+          `[mcp-auto-expose] unbound-param: key "${key}" has no :${key} placeholder in url "${src.url}" — skipping\n`,
         );
       }
     } else if (origin === "querystring") {
@@ -68,7 +70,7 @@ export function reconstructRequest(
     } else if (origin === "body") {
       if (isBodiless) {
         process.stderr.write(
-          `[mcp-auto-expose] body-on-bodiless-method: key "${key}" declared as body but method is ${tool._source.method} — skipping\n`,
+          `[mcp-auto-expose] body-on-bodiless-method: key "${key}" declared as body but method is ${src.method} — skipping\n`,
         );
       } else {
         bodyObj[key] = value;

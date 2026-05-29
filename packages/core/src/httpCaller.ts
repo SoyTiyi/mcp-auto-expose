@@ -1,5 +1,6 @@
 import { reconstructRequest } from "./reconstructRequest.js";
 import type { MCPTool } from "./types.js";
+import { INTERNAL_SOURCE } from "./internal.js";
 
 export interface CallToolResult {
   content: Array<{ type: "text"; text: string }>;
@@ -24,7 +25,8 @@ export function makeHttpCaller(opts: HttpCallerOptions): OnToolCall {
     const { url, querystring, body, headers: mcpParamHeaders } = reconstructRequest(tool, args);
 
     const fullUrl = `${baseUrl}${url}${querystring}`;
-    const hasBody = BODY_METHODS.has(tool._source.method);
+    const src = tool[INTERNAL_SOURCE]!;
+    const hasBody = BODY_METHODS.has(src.method);
 
     const requestHeaders: Record<string, string> = {
       ...defaultHeaders,
@@ -43,7 +45,7 @@ export function makeHttpCaller(opts: HttpCallerOptions): OnToolCall {
     let response: Response;
     try {
       response = await fetch(fullUrl, {
-        method: tool._source.method,
+        method: src.method,
         headers: requestHeaders,
         body: hasBody ? JSON.stringify(body) : undefined,
         signal: AbortSignal.timeout(timeoutMs),
@@ -51,7 +53,7 @@ export function makeHttpCaller(opts: HttpCallerOptions): OnToolCall {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       process.stderr.write(
-        `[mcp-auto-expose] backend call failed: ${msg} (${tool._source.method} ${fullUrl})\n`,
+        `[mcp-auto-expose] backend call failed: ${msg} (${src.method} ${fullUrl})\n`,
       );
       return {
         content: [{ type: "text", text: `Backend error: ${msg}` }],
@@ -63,7 +65,7 @@ export function makeHttpCaller(opts: HttpCallerOptions): OnToolCall {
 
     if (!response.ok) {
       process.stderr.write(
-        `[mcp-auto-expose] backend returned ${response.status} for ${tool._source.method} ${fullUrl}\n`,
+        `[mcp-auto-expose] backend returned ${response.status} for ${src.method} ${fullUrl}\n`,
       );
       return {
         content: [{ type: "text", text: text }],

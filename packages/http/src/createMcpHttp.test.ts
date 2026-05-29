@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import http, { IncomingMessage, ServerResponse } from "node:http";
 import { Socket } from "node:net";
 import type { AddressInfo } from "node:net";
+import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
 import { createMcpHttp } from "./createMcpHttp.js";
 import type { McpHttpContext, McpHttpOptions, McpIncomingMessage } from "./createMcpHttp.js";
 
@@ -20,7 +21,7 @@ const TEST_TOOL = {
   name: "get_item",
   description: "Get an item by id",
   inputSchema: TOOL_SCHEMA,
-  _source: {
+  [INTERNAL_SOURCE]: {
     framework: "express" as const,
     method: "GET" as const,
     url: "/items/:id",
@@ -513,7 +514,7 @@ describe("createMcpHttp Mcp-Param-* coherence", () => {
       },
       required: ["tenant_id", "invoice_id"],
     },
-    _source: {
+    [INTERNAL_SOURCE]: {
       framework: "express" as const,
       method: "POST" as const,
       url: "/invoices",

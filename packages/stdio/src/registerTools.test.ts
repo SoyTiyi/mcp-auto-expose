@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { MCPTool } from "@mcp-auto-expose/core";
+import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
 import { registerTools } from "./registerTools.js";
 
 // Minimal stub that records setRequestHandler calls.
@@ -24,7 +25,7 @@ const sampleTools: MCPTool[] = [
     name: "list_users",
     description: "List all users",
     inputSchema: { type: "object", properties: {} },
-    _source: { framework: "fastify", method: "GET", url: "/api/users", paramMap: {} },
+    [INTERNAL_SOURCE]: { framework: "fastify", method: "GET", url: "/api/users", paramMap: {} },
   },
   {
     name: "create_users",
@@ -34,7 +35,7 @@ const sampleTools: MCPTool[] = [
       properties: { name: { type: "string" }, email: { type: "string" } },
       required: ["name", "email"],
     },
-    _source: {
+    [INTERNAL_SOURCE]: {
       framework: "fastify",
       method: "POST",
       url: "/api/users",
