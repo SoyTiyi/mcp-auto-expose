@@ -9,7 +9,7 @@ export interface AutoExposeOptions extends WalkOptions {
 }
 
 // Unexported symbol used to attach an internal method to the handle
-export const _mount = Symbol("mount");
+const _mount = Symbol("mount");
 
 // Internal interface — not exported; only used within this file and mount()
 interface InternalHandle extends AutoExposeHandle {
@@ -43,7 +43,9 @@ export function autoExpose(app: Express, options: AutoExposeOptions = {}): AutoE
     const skipHandles = new Set<object>(
       mounts
         .map((m) => m.subApp)
-        .filter((s): s is object => s !== null && (typeof s === "object" || typeof s === "function")),
+        .filter(
+          (s): s is object => s !== null && (typeof s === "object" || typeof s === "function"),
+        ),
     );
     // Walk top-level app routes (skipping explicitly mounted sub-routers)
     for (const descriptor of walkRoutes(app, { ...opts, skipHandles })) {
@@ -93,10 +95,6 @@ export function autoExpose(app: Express, options: AutoExposeOptions = {}): AutoE
  * mount(handle, "/api", router);
  * ```
  */
-export function mount(
-  handle: AutoExposeHandle,
-  prefix: string,
-  subApp: unknown,
-): void {
+export function mount(handle: AutoExposeHandle, prefix: string, subApp: unknown): void {
   (handle as InternalHandle)[_mount](prefix, subApp);
 }

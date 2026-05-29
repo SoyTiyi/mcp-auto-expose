@@ -29,7 +29,7 @@ function needsEncoding(value: string): boolean {
   if (last === 0x20 || last === 0x09) return true;
   for (let i = 0; i < value.length; i++) {
     const c = value.charCodeAt(i);
-    if (c < 0x20 || c === 0x7f || c > 0x7e) return true;
+    if (c < 0x20 || c > 0x7e) return true;
   }
   return false;
 }

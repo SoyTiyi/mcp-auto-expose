@@ -28,4 +28,11 @@ export {
   validateAndMergeHeaderParams,
   MCP_PARAM_PREFIX,
 } from "./headerParams.js";
-export type { ValidateResult, ValidateFail, ValidateOk, DecodeResult, DecodeOk, DecodeFail } from "./headerParams.js";
+export type {
+  ValidateResult,
+  ValidateFail,
+  ValidateOk,
+  DecodeResult,
+  DecodeOk,
+  DecodeFail,
+} from "./headerParams.js";

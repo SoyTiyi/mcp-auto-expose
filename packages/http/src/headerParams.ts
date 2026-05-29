@@ -11,4 +11,11 @@ export {
   validateAndMergeHeaderParams,
   MCP_PARAM_PREFIX,
 } from "@mcp-auto-expose/core";
-export type { ValidateResult, ValidateFail, ValidateOk, DecodeResult, DecodeOk, DecodeFail } from "@mcp-auto-expose/core";
+export type {
+  ValidateResult,
+  ValidateFail,
+  ValidateOk,
+  DecodeResult,
+  DecodeOk,
+  DecodeFail,
+} from "@mcp-auto-expose/core";
