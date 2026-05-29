@@ -24,7 +24,8 @@
     "build": "tsc -b",
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "node --import tsx --test $(find src -maxdepth 1 -name '*.test.ts')"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@mcp-auto-expose/core": "workspace:*",
