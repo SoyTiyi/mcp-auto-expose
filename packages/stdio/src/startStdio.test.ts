@@ -1,4 +1,4 @@
-import { describe, it, afterEach, expect, vi } from "vitest";
+import { describe, it, afterEach, expect } from "vitest";
 import { restoreStdoutGuard, isStdoutGuardInstalled } from "./stdoutGuard.js";
 import { startStdio } from "./startStdio.js";
 import type { MCPTool } from "@mcp-auto-expose/core";
@@ -163,9 +163,11 @@ describe("startStdio — resolvedOnToolCall dispatch", () => {
   it("resolvedOnToolCall: tool with execute() — calls execute directly (no http)", async () => {
     const { server, handlers } = makeCapturingServerStub();
     const transport = makeTransportStub();
-    const executeMock = vi.fn().mockResolvedValue({
-      content: [{ type: "text" as const, text: "from-execute" }],
-    });
+    let executeCallCount = 0;
+    const execute = async (_args: unknown) => {
+      executeCallCount++;
+      return { content: [{ type: "text" as const, text: "from-execute" }] };
+    };
 
     const toolWithExecute: MCPTool = {
       name: "ping",
@@ -176,7 +178,7 @@ describe("startStdio — resolvedOnToolCall dispatch", () => {
         method: "GET",
         url: "",
         paramMap: {},
-        execute: executeMock,
+        execute,
       },
     };
 
@@ -188,7 +190,7 @@ describe("startStdio — resolvedOnToolCall dispatch", () => {
     const result = (await invokeCallHandler(handlers, "ping")) as {
       content: { text: string }[];
     };
-    expect(executeMock).toHaveBeenCalledOnce();
+    expect(executeCallCount).toBe(1);
     expect(result.content[0]?.text).toBe("from-execute");
   });
 
@@ -228,8 +230,10 @@ describe("startStdio — resolvedOnToolCall dispatch", () => {
     const result = (await invokeCallHandler(handlers, "list_items").catch((e: unknown) => ({
       content: [{ type: "text", text: String(e) }],
       isError: true,
-    }))) as { isError?: boolean };
+    }))) as { isError?: boolean; content?: Array<{ text?: string }> };
     // The fact that it reaches an error (not the "no executor" message) confirms httpCaller was used.
     expect(result.isError).toBe(true);
+    // The httpCaller path produces a network/connection error, NOT the "no executor" message
+    expect(result.content?.[0]?.text).not.toMatch(/no executor/);
   });
 });
