@@ -43,11 +43,11 @@ Build a framework-agnostic `@mcp-auto-expose/http` package that mounts a single 
 
 Exports three entry points:
 
-| Subpath                         | Purpose                                                          |
-| ------------------------------- | ---------------------------------------------------------------- |
+| Subpath                         | Purpose                                                         |
+| ------------------------------- | --------------------------------------------------------------- |
 | `@mcp-auto-expose/http`         | Framework-agnostic factory `createMcpHttp` + shared types.      |
 | `@mcp-auto-expose/http/express` | Binder `mountMcpExpress` (returns `RequestHandler` + `Router`). |
-| `@mcp-auto-expose/http/fastify` | Binder `mcpFastifyPlugin` (FastifyPluginAsync).                  |
+| `@mcp-auto-expose/http/fastify` | Binder `mcpFastifyPlugin` (FastifyPluginAsync).                 |
 
 ### 2.2 Changes in existing packages
 
@@ -58,11 +58,11 @@ Exports three entry points:
 
 ### 2.3 Architectural decisions confirmed with user
 
-| Decision                       | Outcome                                                                                                                                        |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Decision                       | Outcome                                                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Endpoint**                   | Single path (default `/mcp`, configurable) serving POST + GET + DELETE. Aligns with `docs/principal-document.txt:81` ("a single endpoint"). |
-| **Location**                   | New package `@mcp-auto-expose/http` with sub-binders. Preserves Phase 3 invariant.                                                            |
-| **`x-mcp-header` declaration** | Zod helper `mcpHeader(z.string())` that stamps the annotation into the JSON Schema.                                                            |
+| **Location**                   | New package `@mcp-auto-expose/http` with sub-binders. Preserves Phase 3 invariant.                                                          |
+| **`x-mcp-header` declaration** | Zod helper `mcpHeader(z.string())` that stamps the annotation into the JSON Schema.                                                         |
 
 ### 2.4 Additional technical decisions
 
@@ -218,12 +218,12 @@ Value constraints (SEP-2243 §"Custom Headers from Tool Parameters"):
 
 #### 3.4.4 Body ↔ header merge policy
 
-| Case         | body.args         | header  | resulting args    | Side effect                          |
-| ------------ | ----------------- | ------- | ----------------- | ------------------------------------ |
-| Body only    | `{tenant_id:"a"}` | absent  | `{tenant_id:"a"}` | —                                    |
-| Header only  | `{}`              | `"a"`   | `{tenant_id:"a"}` | `ctx.headerParams.tenant_id="a"`     |
-| Match        | `{tenant_id:"a"}` | `"a"`   | `{tenant_id:"a"}` | —                                    |
-| Mismatch     | `{tenant_id:"a"}` | `"b"`   | `{tenant_id:"b"}` | warn `header-body-mismatch` to stderr |
+| Case        | body.args         | header | resulting args    | Side effect                           |
+| ----------- | ----------------- | ------ | ----------------- | ------------------------------------- |
+| Body only   | `{tenant_id:"a"}` | absent | `{tenant_id:"a"}` | —                                     |
+| Header only | `{}`              | `"a"`  | `{tenant_id:"a"}` | `ctx.headerParams.tenant_id="a"`      |
+| Match       | `{tenant_id:"a"}` | `"a"`  | `{tenant_id:"a"}` | —                                     |
+| Mismatch    | `{tenant_id:"a"}` | `"b"`  | `{tenant_id:"b"}` | warn `header-body-mismatch` to stderr |
 
 "Header wins" because the spec positions headers as the edge routing layer; a proxy/gateway may have injected them authoritatively. Documented in README.
 
@@ -301,13 +301,13 @@ Factory steps in order:
 
 ### 3.8 Transport parity matrix
 
-| Capability                   | stdio | Streamable HTTP                                |
-| ---------------------------- | ----- | ---------------------------------------------- |
-| Tool catalog (`MCPTool[]`)   | ✅    | ✅ identical                                   |
-| `onToolCall(tool, args)`     | ✅    | ✅ + 3rd arg `ctx` (optional, backwards-compat)|
-| `Mcp-Param-*` headers        | N/A   | ✅                                             |
-| Auth context (`ctx.auth`)    | N/A   | ✅ delegated to framework                      |
-| Sessions                     | N/A   | ✅ stateless default, stateful opt-in          |
+| Capability                 | stdio | Streamable HTTP                                 |
+| -------------------------- | ----- | ----------------------------------------------- |
+| Tool catalog (`MCPTool[]`) | ✅    | ✅ identical                                    |
+| `onToolCall(tool, args)`   | ✅    | ✅ + 3rd arg `ctx` (optional, backwards-compat) |
+| `Mcp-Param-*` headers      | N/A   | ✅                                              |
+| Auth context (`ctx.auth`)  | N/A   | ✅ delegated to framework                       |
+| Sessions                   | N/A   | ✅ stateless default, stateful opt-in           |
 
 ---
 

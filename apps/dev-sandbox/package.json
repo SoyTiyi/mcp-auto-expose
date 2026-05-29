@@ -12,6 +12,7 @@
     "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
+    "@mcp-auto-expose/core": "workspace:*",
     "@mcp-auto-expose/express": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@mcp-auto-expose/fastify": "workspace:*",

@@ -114,7 +114,7 @@ Deterministic, aligned with the common CRUD pattern:
 1. Tokenize `url` by `/`, discarding empty segments.
 2. Classify segments as `static` and `param` (`:id` or `{id}`).
 3. `resource = last static segment` (snake_case, plural preserved).
-4. `params = parameter names without `:` or `{}``.
+4. `params = parameter names without `:`or`{}``.
 5. Build the name according to the table. If there is >1 param, concatenate with `_and_`.
 6. If the name exceeds 64 characters, truncate and append `_h<hash6>` (deterministic hash of the full path).
 7. If there is a collision in the `ToolRegistry`, append suffix `_2`, `_3`, …; log to `stderr`.

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { restoreStdoutGuard, isStdoutGuardInstalled } from "./stdoutGuard.js";
 import { startStdio } from "./startStdio.js";
 import type { MCPTool } from "@mcp-auto-expose/core";
+import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
@@ -13,7 +14,7 @@ const sampleTools: MCPTool[] = [
     name: "list_items",
     description: "List items",
     inputSchema: { type: "object", properties: {} },
-    _source: { framework: "fastify", method: "GET", url: "/api/items", paramMap: {} },
+    [INTERNAL_SOURCE]: { framework: "fastify", method: "GET", url: "/api/items", paramMap: {} },
   },
 ];
 
@@ -89,16 +90,14 @@ describe("startStdio", () => {
     assert.equal(connectedTransport, transport, "server.connect must receive the transport");
   });
 
-  it("throws when neither onToolCall nor apiBaseUrl provided", async () => {
+  it("does not throw at init when neither onToolCall nor apiBaseUrl provided (error deferred to per-call)", async () => {
     const server = makeServerStub();
     const transport = makeTransportStub();
-    await assert.rejects(
-      () =>
-        startStdio(
-          { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false },
-          { server, transport },
-        ),
-      /apiBaseUrl.*onToolCall|onToolCall.*apiBaseUrl/i,
+    await assert.doesNotReject(() =>
+      startStdio(
+        { name: "test", version: "0.0.0", tools: sampleTools, installGuard: false },
+        { server, transport },
+      ),
     );
   });
 

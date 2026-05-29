@@ -1,4 +1,5 @@
 import type { MCPTool, RouteDescriptor } from "./types.js";
+import { INTERNAL_SOURCE } from "./internal.js";
 import { generateToolName } from "./toolName.js";
 import { buildToolSchema } from "./flattenSchema.js";
 
@@ -16,6 +17,6 @@ export function resolveTool(descriptor: RouteDescriptor): MCPTool {
     name: generateToolName(method, url),
     description,
     inputSchema,
-    _source: { framework, method, url, paramMap },
+    [INTERNAL_SOURCE]: { framework, method, url, paramMap },
   };
 }

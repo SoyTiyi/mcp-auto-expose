@@ -28,13 +28,13 @@ The process blocks listening on `stdin`/`stdout` for the JSON-RPC 2.0 protocol.
 
 ### `startStdio(options): Promise<StartStdioHandle>`
 
-| Option         | Type        | Default     | Description                                              |
-| -------------- | ----------- | ----------- | -------------------------------------------------------- |
-| `name`         | `string`    | —           | MCP server name                                          |
-| `version`      | `string`    | —           | Server version                                           |
-| `tools`        | `MCPTool[]` | —           | Array produced by `app.mcpAutoExpose.tools()`            |
-| `installGuard` | `boolean`   | `true`      | Installs the global `console.*` → stderr guard           |
-| `onToolCall`   | function    | placeholder | Hook for real tool invocation (see next phase)           |
+| Option         | Type        | Default     | Description                                    |
+| -------------- | ----------- | ----------- | ---------------------------------------------- |
+| `name`         | `string`    | —           | MCP server name                                |
+| `version`      | `string`    | —           | Server version                                 |
+| `tools`        | `MCPTool[]` | —           | Array produced by `app.mcpAutoExpose.tools()`  |
+| `installGuard` | `boolean`   | `true`      | Installs the global `console.*` → stderr guard |
+| `onToolCall`   | function    | placeholder | Hook for real tool invocation (see next phase) |
 
 **`StartStdioHandle.close()`**: gracefully closes the MCP server.
 

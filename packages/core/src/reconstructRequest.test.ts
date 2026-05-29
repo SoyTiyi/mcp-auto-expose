@@ -2,26 +2,34 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { reconstructRequest } from "./reconstructRequest.js";
 import type { MCPTool } from "./types.js";
+import { INTERNAL_SOURCE } from "./internal.js";
+import type { InternalSource } from "./internal.js";
 
-function makeTool(overrides: Partial<MCPTool> = {}): MCPTool {
+function makeTool(
+  overrides: Partial<Omit<MCPTool, typeof INTERNAL_SOURCE>> & {
+    source?: Partial<InternalSource>;
+  } = {},
+): MCPTool {
+  const { source, ...rest } = overrides;
   return {
     name: "test_tool",
     description: "test",
     inputSchema: { type: "object", properties: {} },
-    _source: {
+    [INTERNAL_SOURCE]: {
       framework: "express",
       method: "GET",
       url: "/users",
       paramMap: {},
+      ...source,
     },
-    ...overrides,
+    ...rest,
   };
 }
 
 describe("reconstructRequest", () => {
   it("1. GET /users/:id with {id:'123'} → substitutes URL, no body", () => {
     const tool = makeTool({
-      _source: {
+      source: {
         framework: "express",
         method: "GET",
         url: "/users/:id",
@@ -36,7 +44,7 @@ describe("reconstructRequest", () => {
 
   it("2. GET /users with querystring {format:'json'} → querystring built", () => {
     const tool = makeTool({
-      _source: {
+      source: {
         framework: "express",
         method: "GET",
         url: "/users",
@@ -51,7 +59,7 @@ describe("reconstructRequest", () => {
 
   it("3. POST /users with body {name, email} → body object returned", () => {
     const tool = makeTool({
-      _source: {
+      source: {
         framework: "express",
         method: "POST",
         url: "/users",
@@ -66,7 +74,7 @@ describe("reconstructRequest", () => {
 
   it("4. URL param with special characters → encodeURIComponent applied", () => {
     const tool = makeTool({
-      _source: {
+      source: {
         framework: "express",
         method: "GET",
         url: "/files/:path",
@@ -86,7 +94,7 @@ describe("reconstructRequest", () => {
           tenant_id: { type: "string", "x-mcp-header": "TenantId" },
         },
       },
-      _source: {
+      source: {
         framework: "express",
         method: "GET",
         url: "/users/:id",
@@ -109,7 +117,7 @@ describe("reconstructRequest", () => {
     };
 
     const tool = makeTool({
-      _source: {
+      source: {
         framework: "express",
         method: "GET",
         url: "/users/:id",
@@ -137,7 +145,7 @@ describe("reconstructRequest", () => {
     };
 
     const tool = makeTool({
-      _source: {
+      source: {
         framework: "express",
         method: "GET",
         url: "/users",
@@ -160,7 +168,7 @@ describe("reconstructRequest", () => {
 
   it("8. args not in paramMap → ignored silently", () => {
     const tool = makeTool({
-      _source: {
+      source: {
         framework: "express",
         method: "GET",
         url: "/users",
@@ -175,7 +183,7 @@ describe("reconstructRequest", () => {
 
   it("9. {type:string} brace-style params substitution", () => {
     const tool = makeTool({
-      _source: {
+      source: {
         framework: "fastify",
         method: "GET",
         url: "/users/{id}",

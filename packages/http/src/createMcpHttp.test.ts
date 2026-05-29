@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import http, { IncomingMessage, ServerResponse } from "node:http";
 import { Socket } from "node:net";
 import type { AddressInfo } from "node:net";
+import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
 import { createMcpHttp } from "./createMcpHttp.js";
 import type { McpHttpContext, McpHttpOptions, McpIncomingMessage } from "./createMcpHttp.js";
 
@@ -20,7 +21,7 @@ const TEST_TOOL = {
   name: "get_item",
   description: "Get an item by id",
   inputSchema: TOOL_SCHEMA,
-  _source: {
+  [INTERNAL_SOURCE]: {
     framework: "express" as const,
     method: "GET" as const,
     url: "/items/:id",
@@ -345,16 +346,14 @@ describe("createMcpHttp — SEP-2549 toolsListCache", () => {
 });
 
 describe("createMcpHttp — fail-fast and apiBaseUrl", () => {
-  it("throws when neither onToolCall nor apiBaseUrl provided", () => {
-    assert.throws(
-      () =>
-        createMcpHttp({
-          name: "test",
-          version: "0.0.0",
-          tools: [TEST_TOOL],
-          allowedOrigins: [],
-        }),
-      /apiBaseUrl.*onToolCall|onToolCall.*apiBaseUrl/i,
+  it("does not throw at init when neither onToolCall nor apiBaseUrl provided (error deferred to per-call)", () => {
+    assert.doesNotThrow(() =>
+      createMcpHttp({
+        name: "test",
+        version: "0.0.0",
+        tools: [TEST_TOOL],
+        allowedOrigins: [],
+      }),
     );
   });
 
@@ -513,7 +512,7 @@ describe("createMcpHttp Mcp-Param-* coherence", () => {
       },
       required: ["tenant_id", "invoice_id"],
     },
-    _source: {
+    [INTERNAL_SOURCE]: {
       framework: "express" as const,
       method: "POST" as const,
       url: "/invoices",

@@ -1,4 +1,5 @@
 import type { MCPTool } from "./types.js";
+import { INTERNAL_SOURCE } from "./internal.js";
 
 export interface ReconstructedRequest {
   url: string;
@@ -13,6 +14,9 @@ const BODILESS_METHODS = new Set(["GET", "DELETE", "HEAD", "OPTIONS"]);
 /**
  * Converts a snake_case key to Title-Kebab-Case for header names.
  * Example: tenant_id → Tenant-Id
+ *
+ * Related: {@link collectExpectedHeaderParams} and {@link validateAndMergeHeaderParams}
+ * in ./headerParams.ts handle the server-side parsing and validation of these headers.
  */
 export function toMcpParamHeader(key: string): string {
   const titled = key
@@ -24,7 +28,7 @@ export function toMcpParamHeader(key: string): string {
 
 /**
  * Reconstructs the original REST request fragments from a flat MCP args map.
- * - Uses _source.paramMap to route each arg to params/querystring/body.
+ * - Uses [INTERNAL_SOURCE].paramMap to route each arg to params/querystring/body.
  * - Args with x-mcp-header: true are forwarded as Mcp-Param-* headers instead.
  * - URL param substitution uses encodeURIComponent to prevent path injection.
  */
@@ -32,15 +36,17 @@ export function reconstructRequest(
   tool: MCPTool,
   args: Record<string, unknown>,
 ): ReconstructedRequest {
-  let url = tool._source.url;
+  // `!` needed: TS widens required symbol-keyed properties to `T | undefined` (TS#42192)
+  const src = tool[INTERNAL_SOURCE]!;
+  let url = src.url;
   const qs = new URLSearchParams();
   const bodyObj: Record<string, unknown> = {};
   const headers: Record<string, string> = {};
-  const isBodiless = BODILESS_METHODS.has(tool._source.method);
+  const isBodiless = BODILESS_METHODS.has(src.method);
 
   const properties = tool.inputSchema.properties as Record<string, Record<string, unknown>>;
 
-  for (const [key, origin] of Object.entries(tool._source.paramMap)) {
+  for (const [key, origin] of Object.entries(src.paramMap)) {
     if (!(key in args)) continue;
     const value = args[key];
 
@@ -60,7 +66,7 @@ export function reconstructRequest(
         url = url.replace(bracePlaceholder, encodeURIComponent(String(value)));
       } else {
         process.stderr.write(
-          `[mcp-auto-expose] unbound-param: key "${key}" has no :${key} placeholder in url "${tool._source.url}" — skipping\n`,
+          `[mcp-auto-expose] unbound-param: key "${key}" has no :${key} placeholder in url "${src.url}" — skipping\n`,
         );
       }
     } else if (origin === "querystring") {
@@ -68,7 +74,7 @@ export function reconstructRequest(
     } else if (origin === "body") {
       if (isBodiless) {
         process.stderr.write(
-          `[mcp-auto-expose] body-on-bodiless-method: key "${key}" declared as body but method is ${tool._source.method} — skipping\n`,
+          `[mcp-auto-expose] body-on-bodiless-method: key "${key}" declared as body but method is ${src.method} — skipping\n`,
         );
       } else {
         bodyObj[key] = value;

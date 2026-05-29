@@ -2,7 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import express, { type Request, type Response } from "express";
 import { z } from "zod";
-import { autoExpose } from "./autoExpose.js";
+import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
+import { autoExpose, mount } from "./autoExpose.js";
 import { mcpExpose } from "./mcpExpose.js";
 
 function makeApp() {
@@ -26,13 +27,15 @@ function makeApp() {
     }),
     async (_req: Request, res: Response) => res.status(201).json({}),
   );
+  const handle = autoExpose(app, { strictSchema: true });
   app.use("/api", router);
-  return app;
+  mount(handle, "/api", router);
+  return handle;
 }
 
 describe("autoExpose", () => {
   it("tools() returns 3 MCPTools with correct sorted names", () => {
-    const handle = autoExpose(makeApp(), { strictSchema: true });
+    const handle = makeApp();
     const tools = handle.tools();
     assert.equal(tools.length, 3);
     assert.equal(tools[0]!.name, "create_users");
@@ -41,7 +44,7 @@ describe("autoExpose", () => {
   });
 
   it("get_users_by_id has correct params schema", () => {
-    const handle = autoExpose(makeApp(), { strictSchema: true });
+    const handle = makeApp();
     const tools = handle.tools();
     const tool = tools.find((t) => t.name === "get_users_by_id");
     assert.ok(tool, "tool not found");
@@ -54,7 +57,7 @@ describe("autoExpose", () => {
   });
 
   it("create_users has name and email properties", () => {
-    const handle = autoExpose(makeApp(), { strictSchema: true });
+    const handle = makeApp();
     const tools = handle.tools();
     const tool = tools.find((t) => t.name === "create_users");
     assert.ok(tool, "tool not found");
@@ -64,7 +67,7 @@ describe("autoExpose", () => {
   });
 
   it("list_users has correct description", () => {
-    const handle = autoExpose(makeApp(), { strictSchema: true });
+    const handle = makeApp();
     const tools = handle.tools();
     const tool = tools.find((t) => t.name === "list_users");
     assert.ok(tool, "tool not found");
@@ -72,14 +75,14 @@ describe("autoExpose", () => {
   });
 
   it("tools() called twice returns the same object reference (memoized)", () => {
-    const handle = autoExpose(makeApp(), { strictSchema: true });
+    const handle = makeApp();
     const result1 = handle.tools();
     const result2 = handle.tools();
     assert.ok(Object.is(result1, result2), "tools() not memoized");
   });
 
   it("refresh() returns a new array but with the same tools", () => {
-    const handle = autoExpose(makeApp(), { strictSchema: true });
+    const handle = makeApp();
     const result1 = handle.tools();
     const result2 = handle.refresh();
     assert.ok(!Object.is(result1, result2), "refresh() returned same reference");
@@ -97,10 +100,11 @@ describe("autoExpose", () => {
     );
     app.use("/api", router);
 
-    // Walk runs eagerly at construction time
+    // Walk runs eagerly at construction time — mount() called after so sub-router IS captured eagerly
     const handle = autoExpose(app, { eager: true, strictSchema: true });
+    mount(handle, "/api", router);
 
-    // Add a route AFTER autoExpose — should NOT appear in tools()
+    // Add a route AFTER autoExpose + mount — should NOT appear in tools()
     router.get(
       "/posts",
       mcpExpose({ description: "Listar posts" }),
@@ -116,30 +120,29 @@ describe("autoExpose", () => {
     );
   });
 
-  it("_source.framework === 'express' on every tool", () => {
-    const handle = autoExpose(makeApp(), { strictSchema: true });
+  it("INTERNAL_SOURCE.framework === 'express' on every tool", () => {
+    const handle = makeApp();
     const tools = handle.tools();
     for (const tool of tools) {
-      assert.equal(tool._source.framework, "express");
+      assert.equal(tool[INTERNAL_SOURCE].framework, "express");
     }
   });
 
-  it("recovers mount prefix when autoExpose is called before app.use (Express 5.1+ pattern)", () => {
+  it("mount() registers sub-router routes with the given prefix", () => {
     const app = express();
-    // autoExpose BEFORE app.use — wraps app.use to intercept future mounts
     const handle = autoExpose(app, { strictSchema: true });
 
     const router = express.Router();
     router.get("/users", mcpExpose({ description: "List users" }), (_req: Request, res: Response) =>
       res.json([]),
     );
-    app.use("/api", router); // intercepted by autoExpose wrapper
+
+    app.use("/api", router);
+    mount(handle, "/api", router); // explicit instead of monkey-patch
 
     const tools = handle.tools();
     assert.equal(tools.length, 1);
-    // Full path with prefix must be recovered
-    assert.equal(tools[0]!._source.url, "/api/users");
-    // generateToolName("/api/users", "GET") strips "api" as a prefix segment → "list_users"
+    assert.equal(tools[0]![INTERNAL_SOURCE].url, "/api/users");
     assert.equal(tools[0]!.name, "list_users");
   });
 
@@ -154,9 +157,10 @@ describe("autoExpose", () => {
     router.get("/admin/secret", mcpExpose({ hide: true }), async (_req: Request, res: Response) =>
       res.json({}),
     );
-    app.use("/api", router);
-
     const handle = autoExpose(app, { strictSchema: true });
+    app.use("/api", router);
+    mount(handle, "/api", router);
+
     const tools = handle.tools();
     const names = tools.map((t) => t.name);
     assert.ok(!names.includes("list_admin_secret"), "hidden route should not appear");
@@ -173,9 +177,10 @@ describe("autoExpose", () => {
     );
     // This route has no mcpExpose — should be excluded with strictSchema: true
     router.get("/bare", async (_req: Request, res: Response) => res.json({}));
-    app.use("/api", router);
-
     const handle = autoExpose(app, { strictSchema: true });
+    app.use("/api", router);
+    mount(handle, "/api", router);
+
     const tools = handle.tools();
     const names = tools.map((t) => t.name);
     assert.ok(!names.includes("list_bare"), "bare route without mcpExpose should not appear");

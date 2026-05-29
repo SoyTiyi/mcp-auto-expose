@@ -1,12 +1,11 @@
 import { reconstructRequest } from "./reconstructRequest.js";
 import type { MCPTool } from "./types.js";
+import { INTERNAL_SOURCE } from "./internal.js";
 
-export interface CallToolResult {
-  content: Array<{ type: "text"; text: string }>;
-  isError?: boolean;
-}
+export type { ToolCallResult as CallToolResult } from "./types.js";
+import type { ToolCallResult } from "./types.js";
 
-export type OnToolCall = (tool: MCPTool, args: unknown, ctx?: unknown) => Promise<CallToolResult>;
+export type OnToolCall = (tool: MCPTool, args: unknown, ctx?: unknown) => Promise<ToolCallResult>;
 
 export interface HttpCallerOptions {
   baseUrl: string;
@@ -19,12 +18,14 @@ const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
 export function makeHttpCaller(opts: HttpCallerOptions): OnToolCall {
   const { baseUrl, defaultHeaders = {}, timeoutMs = 30_000 } = opts;
 
-  return async (tool, rawArgs, ctx): Promise<CallToolResult> => {
+  return async (tool, rawArgs, ctx): Promise<ToolCallResult> => {
     const args = (rawArgs ?? {}) as Record<string, unknown>;
     const { url, querystring, body, headers: mcpParamHeaders } = reconstructRequest(tool, args);
 
     const fullUrl = `${baseUrl}${url}${querystring}`;
-    const hasBody = BODY_METHODS.has(tool._source.method);
+    // `!` needed: TS widens required symbol-keyed properties to `T | undefined` (TS#42192)
+    const src = tool[INTERNAL_SOURCE]!;
+    const hasBody = BODY_METHODS.has(src.method);
 
     const requestHeaders: Record<string, string> = {
       ...defaultHeaders,
@@ -43,7 +44,7 @@ export function makeHttpCaller(opts: HttpCallerOptions): OnToolCall {
     let response: Response;
     try {
       response = await fetch(fullUrl, {
-        method: tool._source.method,
+        method: src.method,
         headers: requestHeaders,
         body: hasBody ? JSON.stringify(body) : undefined,
         signal: AbortSignal.timeout(timeoutMs),
@@ -51,7 +52,7 @@ export function makeHttpCaller(opts: HttpCallerOptions): OnToolCall {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       process.stderr.write(
-        `[mcp-auto-expose] backend call failed: ${msg} (${tool._source.method} ${fullUrl})\n`,
+        `[mcp-auto-expose] backend call failed: ${msg} (${src.method} ${fullUrl})\n`,
       );
       return {
         content: [{ type: "text", text: `Backend error: ${msg}` }],
@@ -63,7 +64,7 @@ export function makeHttpCaller(opts: HttpCallerOptions): OnToolCall {
 
     if (!response.ok) {
       process.stderr.write(
-        `[mcp-auto-expose] backend returned ${response.status} for ${tool._source.method} ${fullUrl}\n`,
+        `[mcp-auto-expose] backend returned ${response.status} for ${src.method} ${fullUrl}\n`,
       );
       return {
         content: [{ type: "text", text: text }],

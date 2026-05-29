@@ -6,6 +6,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { MCPTool, HttpCallerOptions } from "@mcp-auto-expose/core";
 import { makeHttpCaller } from "@mcp-auto-expose/core";
+import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
 import { checkOrigin } from "./origin.js";
 import { validateSep2243 } from "./sep2243.js";
 import { validateAndMergeHeaderParams } from "./headerParams.js";
@@ -40,8 +41,8 @@ export interface McpHttpOptions {
   sessionIdGenerator?: () => string;
   enableJsonResponse?: boolean;
   warnOnNonLocalhost?: boolean;
-  /** Enforce SEP-2243 header coherence (Mcp-Method + Mcp-Name). Default false.
-   *  Enable in browser-facing deployments to mitigate CSRF/DNS-rebinding. */
+  /** Enforce SEP-2243 header coherence (Mcp-Method + Mcp-Name). Default true.
+   *  Disable only for testing or non-browser deployments where CSRF risk is absent. */
   requireSep2243?: boolean;
   tools: MCPTool[];
   name: string;
@@ -140,19 +141,28 @@ export function createMcpHttp(options: McpHttpOptions): McpHttpHandle {
     sanitizeToolXMcpHeaders(t.name, t.inputSchema as unknown as Record<string, unknown>, warn);
   }
 
-  const onToolCall: OnToolCallHttp = (() => {
-    if (options.onToolCall) return options.onToolCall;
-    if (options.apiBaseUrl) {
-      const caller = makeHttpCaller({
-        baseUrl: options.apiBaseUrl,
-        ...options.apiCallerOptions,
-      });
-      return (tool, args, ctx) => caller(tool, args, ctx);
+  const _httpCaller = options.apiBaseUrl
+    ? makeHttpCaller({ baseUrl: options.apiBaseUrl, ...options.apiCallerOptions })
+    : undefined;
+
+  const onToolCall: OnToolCallHttp = async (tool, args, ctx) => {
+    // `!` needed: TS widens required symbol-keyed properties to `T | undefined` (TS#42192)
+    const src = tool[INTERNAL_SOURCE]!;
+    if (typeof src.execute === "function") {
+      return src.execute(args);
     }
-    throw new Error(
-      "[mcp-auto-expose/http] createMcpHttp requires either 'apiBaseUrl' or 'onToolCall'.",
-    );
-  })();
+    if (options.onToolCall) return options.onToolCall(tool, args, ctx);
+    if (_httpCaller) return _httpCaller(tool, args, ctx);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `[mcp-auto-expose/http] Tool "${tool.name}" has no executor. Provide apiBaseUrl or onToolCall, or use defineTool() to add an execute handler.`,
+        },
+      ],
+      isError: true,
+    };
+  };
 
   localhostWarn(warnOnNonLocalhost);
 

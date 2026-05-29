@@ -1,12 +1,11 @@
 import express, { Router } from "express";
 import { z } from "zod";
-import { autoExpose, mcpExpose } from "@mcp-auto-expose/express";
+import { autoExpose, mcpExpose, mount } from "@mcp-auto-expose/express";
 import { startStdio } from "@mcp-auto-expose/stdio";
 
 const app = express();
 app.use(express.json());
 
-// autoExpose must be called before mounting sub-routers (Express 5.1+ requirement for mount path recovery)
 const handle = autoExpose(app, { strictSchema: true });
 
 const router = Router();
@@ -37,7 +36,8 @@ router.post(
   },
 );
 
-app.use("/api", router); // intercepted: mount path "/api" is recorded in handle's registry
+app.use("/api", router);
+mount(handle, "/api", router); // explicit mount registration
 
 await startStdio({
   name: "express-sandbox",

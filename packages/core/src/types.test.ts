@@ -7,6 +7,7 @@ import type {
   HTTPMethod,
   RouteSchema,
 } from "./types.js";
+import { INTERNAL_SOURCE } from "./internal.js";
 
 describe("HTTPMethod", () => {
   it("accepts valid HTTP methods", () => {
@@ -100,14 +101,15 @@ describe("MCPTool", () => {
       name: "list_users",
       description: "List all users",
       inputSchema: { type: "object", properties: {} },
-      _source: { framework: "fastify", method: "GET", url: "/users", paramMap: {} },
+      [INTERNAL_SOURCE]: { framework: "fastify", method: "GET", url: "/users", paramMap: {} },
     };
     assert.equal(tool.name, "list_users");
     assert.equal(tool.description, "List all users");
     assert.equal(tool.inputSchema.type, "object");
-    assert.equal(tool._source.framework, "fastify");
-    assert.equal(tool._source.method, "GET");
-    assert.equal(tool._source.url, "/users");
+    const src1 = tool[INTERNAL_SOURCE]!;
+    assert.equal(src1.framework, "fastify");
+    assert.equal(src1.method, "GET");
+    assert.equal(src1.url, "/users");
   });
 
   it("accepts MCPTool with complex inputSchema", () => {
@@ -123,7 +125,7 @@ describe("MCPTool", () => {
         },
         required: ["name", "email"],
       },
-      _source: {
+      [INTERNAL_SOURCE]: {
         framework: "express",
         method: "POST",
         url: "/users",
@@ -131,6 +133,6 @@ describe("MCPTool", () => {
       },
     };
     assert.equal(tool.inputSchema.required?.length, 2);
-    assert.equal(tool._source.method, "POST");
+    assert.equal(tool[INTERNAL_SOURCE]!.method, "POST");
   });
 });

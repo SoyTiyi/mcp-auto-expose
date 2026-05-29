@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import type { MCPTool } from "./types.js";
+import { INTERNAL_SOURCE } from "./internal.js";
 import { ToolRegistry } from "./registry.js";
 
 function makeTool(name: string): MCPTool {
@@ -8,7 +9,7 @@ function makeTool(name: string): MCPTool {
     name,
     description: `Tool ${name}`,
     inputSchema: { type: "object", properties: {} },
-    _source: { framework: "fastify", method: "GET", url: `/${name}`, paramMap: {} },
+    [INTERNAL_SOURCE]: { framework: "fastify", method: "GET", url: `/${name}`, paramMap: {} },
   };
 }
 

@@ -5,6 +5,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import express from "express";
 import type { RequestHandler } from "express";
+import { INTERNAL_SOURCE } from "@mcp-auto-expose/core/internal";
 import { mountMcpExpress } from "./express.js";
 import type { McpHttpOptions } from "./createMcpHttp.js";
 
@@ -21,7 +22,7 @@ const TEST_TOOL = {
   name: "get_item",
   description: "Get an item by id",
   inputSchema: TOOL_SCHEMA,
-  _source: {
+  [INTERNAL_SOURCE]: {
     framework: "express" as const,
     method: "GET" as const,
     url: "/items/:id",
