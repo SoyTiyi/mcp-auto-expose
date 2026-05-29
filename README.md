@@ -7,6 +7,44 @@ Protocol: **MCP 2025-11-25** | SEPs: **2243** (required) · **2549** (optional c
 
 ---
 
+## How it works
+
+The library never replaces your REST API — it **mirrors** it as an MCP tool catalog and routes
+each agent call back to your real endpoint.
+
+```
+Your API (Express / Fastify)
+        │  discover
+        ▼
+  Framework adapter        fastify: onRoute hook · express: walks app._router.stack
+        │  emits
+        ▼
+  RouteDescriptor          { framework, method, url, schema }   ← neutral format
+        │  resolveTool()   (core)
+        ▼
+  MCPTool                  name + description + inputSchema (+ hidden source metadata)
+        │  ToolRegistry     (name de-duplication)
+        ▼
+  MCPTool[]  ──►  transport  ──►  MCP SDK  ──►  tool call  ──►  fetch your backend
+               (stdio | HTTP)                                  (or run in-process)
+```
+
+The **core** engine is framework-agnostic: adapters translate their world into a neutral
+`RouteDescriptor`, and `resolveTool()` turns that into a tool. Tool names are **deterministic**:
+
+| Route                   | Tool name            |
+| ----------------------- | -------------------- |
+| `GET /api/users`        | `list_users`         |
+| `GET /api/users/:id`    | `get_users_by_id`    |
+| `POST /api/users`       | `create_users`       |
+| `DELETE /api/users/:id` | `delete_users_by_id` |
+
+> **Opt-in vs opt-out:** Fastify exposes every schema'd route (opt out per route with
+> `config: { mcpExpose: false }`). Express is opt-in by design — only routes decorated with
+> `mcpExpose()` are exposed, so internal/admin endpoints are never published by accident.
+
+---
+
 ## Installation
 
 ```sh
@@ -91,6 +129,53 @@ app.listen(3000, "127.0.0.1");
 | `@mcp-auto-expose/express` | Recursive `app._router.stack` walker + `mcpExpose` / `mcpHeader` decorators  |
 | `@mcp-auto-expose/stdio`   | stdio transport with `stdoutGuard` (redirects `console.*` → stderr)          |
 | `@mcp-auto-expose/http`    | Streamable HTTP (POST+SSE); binders for Express and Fastify                  |
+
+---
+
+## Header parameters (`x-mcp-header`, SEP-2243)
+
+Mark a parameter so it travels as an `Mcp-Param-*` HTTP header instead of in the request body —
+handy for tenant ids, tokens, or any value you want kept out of the tool arguments. The library
+enforces coherence: if the body and the header disagree, the call is rejected with HTTP 400.
+
+```ts
+// Express (Zod)
+import { mcpExpose, mcpHeader } from "@mcp-auto-expose/express";
+import { z } from "zod";
+
+router.get(
+  "/users/:id",
+  mcpExpose({
+    params: z.object({ id: z.string(), tenant_id: mcpHeader(z.string(), "TenantId") }),
+  }),
+  handler,
+); // tenant_id is carried as `Mcp-Param-TenantId`
+
+// Fastify (plain JSON Schema)
+import { mcpHeader } from "@mcp-auto-expose/fastify";
+// params: { type: "object", properties: { tenant_id: mcpHeader({ type: "string" }, "TenantId") } }
+```
+
+---
+
+## Escape hatch — `defineTool`
+
+Not every tool maps to an HTTP route. Use `defineTool` to add a tool that runs **in-process**
+(no HTTP roundtrip), validated with a Zod schema:
+
+```ts
+import { defineTool } from "@mcp-auto-expose/core";
+import { z } from "zod";
+
+const ping = defineTool({
+  name: "ping",
+  description: "Returns pong",
+  inputSchema: z.object({}),
+  execute: async () => ({ content: [{ type: "text", text: "pong" }] }),
+});
+
+// pass it alongside discovered tools, e.g. startStdio({ name, version, tools: [...handle.tools(), ping] })
+```
 
 ---
 
